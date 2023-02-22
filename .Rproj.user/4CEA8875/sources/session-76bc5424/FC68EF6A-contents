@@ -1,0 +1,51 @@
+# Author: Matthew Bailey
+# Date: 15FEB2023
+# R version: 4.2.2
+
+library(testthat)
+
+# GET FUNCTION
+source("R://Data Management/R Resources/Functions/PenCTU/R/extract_JSON_from_column.R")
+
+# GET RCC EXPORT DATA
+setwd("T:/ProGroup (JP)/20 - Data management and analysis/Exports/Stats/2023/2023-02-01/3 month")
+rcc_data <- read.csv("Social Identification 2023-02-01.csv", header=T, na.strings=c(""))
+
+# TEST RCC EXPORT DATA
+should_succeed <- extract_JSON_from_column(data = rcc_data, col_name = "redcap_record_metadata")
+
+test_that("rcc data contains subjectId from metadata", {
+  expect_true(!is.na(should_succeed$subject.subjectId[1]))
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# CREATE DATAFRAME WITHOUT redcap_records_metadata COLUMN
+fail_df <- data.frame(
+  id = c(1, 2),
+  json = c(
+    '{"user":"xyz1","weightmap": {"P1":0,"P2":100}, "domains":["a1","b1"]}',
+    '{"user":"xyz2","weightmap": {"P1":100,"P2":0}, "domains":["a2","b2"]}'
+  ),
+  stringsAsFactors = FALSE
+)
+
+# TEST DATAFRAME FOR ERROR
+test <- extract_JSON_from_column(data = fail_df)
+
+test_that("error occurs when redcap_records_metadata is not included", {
+  expect_warning(extract_JSON_from_column(data = fail_df), "PenCTU error: Ensure input data contains redcap_record_metadata column")
+})
