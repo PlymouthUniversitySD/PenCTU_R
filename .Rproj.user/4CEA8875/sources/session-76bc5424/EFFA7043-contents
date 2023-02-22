@@ -1,9 +1,0 @@
-# GET FUNCTION
-source("R://Data Management/R Resources/Functions/PenCTU/R/extract_JSON_from_column.R")
-
-# GET RCC EXPORT DATA
-setwd("T:/ProGroup (JP)/20 - Data management and analysis/Exports/Stats/2023/2023-02-01/3 month")
-rcc_data <- read.csv("Social Identification 2023-02-01.csv", header=T, na.strings=c(""))
-
-# TEST RCC EXPORT DATA
-should_succeed <- extract_JSON_from_column(data = rcc_data, col_name = 'redcap_record_metadata')
