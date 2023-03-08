@@ -2,8 +2,10 @@
 # Date: 24FEB2023
 # R version: 4.2.2
 
-
+library(dplyr) #1.1.0
+library(tidyr) #1.3.0
 library(tidyverse) #1.3.2
+library(purrr) #1.0.1
 
 #' Extract json from data frame column
 #'
