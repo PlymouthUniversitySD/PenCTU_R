@@ -2,5 +2,20 @@ Package: PenCTU
 Type: Package
 Title: PenCTU Data Management Functions
 Version: 0.0.3
-RoxygenNote: 7.2.3
+Authors@R: 
+    c(person(given = "Matthew",
+             family = "Bailey",
+             role = c("aut", "cre", "cph"),
+             email = "matthew.bailey@plymouth.ac.uk"))
+Description: A set of functions that speed up data management, cleaning and visualisation at PenCTU.
 Encoding: UTF-8
+Depends: 
+  R (<= 4.2.2)
+Imports: 
+  dplyr (>= 1.1.0),
+  tidyr (>= 1.3.0),
+  tidyverse (>= 1.3.2),
+  purrr (>= 1.0.1),
+  expss (>= 0.11.4)
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3

@@ -55,3 +55,25 @@ extract_json_from_column(data = df, col_name = "JSON", prop_list = c("event.name
 ```
 this will return a new dataframe containing the following columns:
 (ID, Value, Description, event.name, event.status).
+
+
+## labels_from_dictionary
+
+### Description
+This function checks the data dictionary (dictionary_df) for any variable names which match those in the data (data_df). It then assigns the label from dictionary_df to the variables in data_df
+
+### Usage
+```
+from_rcc <- labels_from_dictionary(data_df = export, dictionary_df = data_dictionary, var_names_str= "Variable...Field.Name", var_labels_str = "Field.Label")
+```
+
+### Arguments
+-   `data_df`: df - The data frame to add labels to
+
+-   `dictionary_df`: df - The data dictionary containing variable names and data labels
+
+-   `var_names_str`: chr - A string containing the name of the column in dictionary_df which contains the variable names
+
+-   `var_labels_str`: chr - A string containing the name of the column in dictionary_df which contains the corresponding data labels
+
+### Examples
