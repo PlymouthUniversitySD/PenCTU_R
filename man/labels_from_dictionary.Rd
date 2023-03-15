@@ -4,7 +4,14 @@
 \alias{labels_from_dictionary}
 \title{Add variable labels to data from a data dictionary}
 \usage{
-labels_from_dictionary(data_df, dictionary_df, var_names_str, var_labels_str)
+labels_from_dictionary(
+  data_df,
+  dictionary_df,
+  var_names_str,
+  var_labels_str,
+  var_choices_str = NULL,
+  split_by = " \\\\| "
+)
 }
 \arguments{
 \item{data_df}{The data frame to add labels to}
@@ -14,6 +21,10 @@ labels_from_dictionary(data_df, dictionary_df, var_names_str, var_labels_str)
 \item{var_names_str}{A string containing the name of the column in dictionary_df which contains the variable names}
 
 \item{var_labels_str}{A string containing the name of the column in dictionary_df which contains the corresponding data labels}
+
+\item{var_choices_str}{(Optional) A string containing the name of the column in dictionary_df which contains the response options}
+
+\item{split_by}{(Optional, default = ' \\| ') The string to separate response options}
 }
 \value{
 The original data frame with labels assigned from the data dictionary provided
