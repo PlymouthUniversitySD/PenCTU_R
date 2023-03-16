@@ -6,6 +6,7 @@ library(dplyr) #1.1.0
 library(tidyr) #1.3.0
 library(tidyverse) #1.3.2
 library(purrr) #1.0.1
+library(jsonlite) #1.8.4
 
 #' Extract json from data frame column
 #'
@@ -21,9 +22,9 @@ library(purrr) #1.0.1
 extract_json_from_column <- function(data, col_name, prop_list = NULL) {
   tryCatch({
     temp <- data %>%
-      mutate(json_data = map(data[[col_name]], ~ unlist(jsonlite::fromJSON(.))) %>% bind_rows) %>% #Creates a new column (json_data) with unlisted JSON data
-      unnest(json_data) %>% #Un-nests json_data so that each JSON object becomes its own column
-      select(-col_name) #Removes original JSON column (col_name)
+      dplyr::mutate(json_data = purrr::map(data[[col_name]], ~ unlist(jsonlite::fromJSON(.))) %>% bind_rows) %>% #Creates a new column (json_data) with unlisted JSON data
+      tidyr::unnest(json_data) %>% #Un-nests json_data so that each JSON object becomes its own column
+      dplyr::select(-col_name) #Removes original JSON column (col_name)
 
     if (is.null(prop_list)) {
       result <- temp

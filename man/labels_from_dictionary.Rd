@@ -10,7 +10,8 @@ labels_from_dictionary(
   var_names_str,
   var_labels_str,
   var_choices_str = NULL,
-  split_by = " \\\\| "
+  split_by = " \\\\| ",
+  stata_path = NULL
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ labels_from_dictionary(
 \item{var_choices_str}{(Optional) A string containing the name of the column in dictionary_df which contains the response options}
 
 \item{split_by}{(Optional, default = ' \\| ') The string to separate response options}
+
+\item{stata_path}{(Optional) A string containing the file path of the location where the stata file should be saved}
 }
 \value{
 The original data frame with labels assigned from the data dictionary provided
