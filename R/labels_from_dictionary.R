@@ -2,6 +2,7 @@
 # Date: 08MAR2023
 # R version: 4.2.2
 
+library(dplyr) #1.1.0
 library(tidyverse) #1.3.2
 library(expss) #0.11.4
 library(stringr) #1.5.0
@@ -39,6 +40,8 @@ labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_la
                                                                  levels = sapply(value,"[[",1), 
                                                                  labels = sapply(value,"[[",2)) #Assign value labels
         }
+        
+        data_df[data_df == "NULL"] <- NA
         
         expss::var_lab(data_df[[dictionary_df[[var_names_str]][i]]]) = dictionary_df[[var_labels_str]][i] #Assign variable label
         
