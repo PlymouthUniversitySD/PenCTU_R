@@ -6,7 +6,11 @@ Authors@R:
     c(person(given = "Matthew",
              family = "Bailey",
              role = c("aut", "cre", "cph"),
-             email = "matthew.bailey@plymouth.ac.uk"))
+             email = "matthew.bailey@plymouth.ac.uk"),
+       person(given = "Lexy",
+             family = "Sorrell",
+             role = c("aut", "cre", "cph"),
+             email = "lexy.sorrell@plymouth.ac.uk"))
 Description: A set of functions that speed up data management, cleaning and visualisation at PenCTU.
 Encoding: UTF-8
 Depends: 

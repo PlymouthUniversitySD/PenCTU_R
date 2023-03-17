@@ -14,9 +14,9 @@ library(jsonlite) #1.8.4
 #' @param col_name The name of the column containing the json data e.g. "redcap_record_metadata"
 #' @param prop_list A vector containing JSON properties that the user would like to extract from the json column (col_name) e.g. c("column_name_1", "another_column_name"), if not specified returns all extracted json properties. 
 #' @return The original data frame with each JSON property becoming its own column and the original json column (col_nam) being removed
-#' @examples
-#' example1 <- extract_json_from_column(data = df, col_name = "JSON")
-#' example2 <- extract_json_from_column(data = df, col_name = "JSON", prop_list = c("event.name", "event.status"))
+#' @usage 
+#' extract_json_from_column(data = df, col_name = "JSON", prop_list = NULL)
+#' extract_json_from_column(data = df, col_name = "JSON", prop_list = c("event.name", "event.status"))
 #' @importFrom dplyr "%>%"
 #' @export
 extract_json_from_column <- function(data, col_name, prop_list = NULL) {

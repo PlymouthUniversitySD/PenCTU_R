@@ -1,5 +1,5 @@
-# Author: Matthew Bailey
-# Date: 08MAR2023
+# Author: Matthew Bailey and Lexy Sorrell
+# Date: 17MAR2023
 # R version: 4.2.2
 
 library(dplyr) #1.1.0
@@ -18,8 +18,8 @@ library(haven) #2.5.1
 #' @param split_by (Optional, default = ' \\| ') The string to separate response options
 #' @param stata_path (Optional) A string containing the file path of the location where the stata file should be saved
 #' @return The original data frame with labels assigned from the data dictionary provided
-#' @examples
-#' from_rcc <- labels_from_dictionary(data_df = export, dictionary_df = data_dictionary, var_names_str= "Variable...Field.Name", var_labels_str = "Field.Label")
+#' @usage 
+#' labels_from_dictionary(data_df = export, dictionary_df = data_dictionary, var_names_str= "Variable...Field.Name", var_labels_str = "Field.Label", split_by= ' \\| ', stata_path = NULL)
 #' @importFrom dplyr "%>%"
 #' @export
 labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_labels_str, var_choices_str = NULL, split_by = ' \\| ', stata_path = NULL) {

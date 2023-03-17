@@ -4,15 +4,7 @@
 \alias{labels_from_dictionary}
 \title{Add variable labels to data from a data dictionary}
 \usage{
-labels_from_dictionary(
-  data_df,
-  dictionary_df,
-  var_names_str,
-  var_labels_str,
-  var_choices_str = NULL,
-  split_by = " \\\\| ",
-  stata_path = NULL
-)
+labels_from_dictionary(data_df = export, dictionary_df = data_dictionary, var_names_str= "Variable...Field.Name", var_labels_str = "Field.Label", split_by= ' \\| ', stata_path = NULL)
 }
 \arguments{
 \item{data_df}{The data frame to add labels to}
@@ -34,7 +26,4 @@ The original data frame with labels assigned from the data dictionary provided
 }
 \description{
 This function checks the data dictionary (dictionary_df) for any variable names which match those in the data (data_df). It then assigns the label from dictionary_df to the variables in data_df
-}
-\examples{
-from_rcc <- labels_from_dictionary(data_df = export, dictionary_df = data_dictionary, var_names_str= "Variable...Field.Name", var_labels_str = "Field.Label")
 }
