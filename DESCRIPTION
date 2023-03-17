@@ -1,7 +1,7 @@
 Package: PenCTU
 Type: Package
 Title: PenCTU Data Management Functions
-Version: 0.0.3
+Version: 0.0.4
 Authors@R: 
     c(person(given = "Matthew",
              family = "Bailey",
@@ -13,8 +13,6 @@ Depends:
   R (<= 4.2.2)
 Imports: 
   dplyr (>= 1.1.0),
-  tidyr (>= 1.3.0),
-  tidyverse (>= 1.3.2),
   purrr (>= 1.0.1),
   expss (>= 0.11.4),
   stringr (>= 1.5.0),

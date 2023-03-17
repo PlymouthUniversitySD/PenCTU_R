@@ -4,7 +4,6 @@
 
 library(dplyr) #1.1.0
 library(tidyr) #1.3.0
-library(tidyverse) #1.3.2
 library(purrr) #1.0.1
 library(jsonlite) #1.8.4
 
@@ -18,6 +17,7 @@ library(jsonlite) #1.8.4
 #' @examples
 #' example1 <- extract_json_from_column(data = df, col_name = "JSON")
 #' example2 <- extract_json_from_column(data = df, col_name = "JSON", prop_list = c("event.name", "event.status"))
+#' @importFrom dplyr "%>%"
 #' @export
 extract_json_from_column <- function(data, col_name, prop_list = NULL) {
   tryCatch({

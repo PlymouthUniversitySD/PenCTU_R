@@ -2,3 +2,4 @@
 
 export(extract_json_from_column)
 export(labels_from_dictionary)
+importFrom(dplyr,"%>%")

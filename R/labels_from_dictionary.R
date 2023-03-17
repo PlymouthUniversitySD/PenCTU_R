@@ -3,7 +3,6 @@
 # R version: 4.2.2
 
 library(dplyr) #1.1.0
-library(tidyverse) #1.3.2
 library(expss) #0.11.4
 library(stringr) #1.5.0
 library(haven) #2.5.1
@@ -21,6 +20,7 @@ library(haven) #2.5.1
 #' @return The original data frame with labels assigned from the data dictionary provided
 #' @examples
 #' from_rcc <- labels_from_dictionary(data_df = export, dictionary_df = data_dictionary, var_names_str= "Variable...Field.Name", var_labels_str = "Field.Label")
+#' @importFrom dplyr "%>%"
 #' @export
 labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_labels_str, var_choices_str = NULL, split_by = ' \\| ', stata_path = NULL) {
   tryCatch({
@@ -30,7 +30,7 @@ labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_la
         
         if(!is.null(var_choices_str) & !is.na(dictionary_df[[var_choices_str]][i])){
           #String split 
-          value <- stringr::str_remove_all(dictionary[[var_choices_str]][i], '\"') %>%  #Remove any quote marks
+          value <- stringr::str_remove_all(dictionary[[var_choices_str]][i], '\"') %>% #Remove any quote marks
             stringr::str_remove_all('\"') %>% 
             stringr::str_split_1(split_by) %>%
             stringr::str_trim() %>% 
