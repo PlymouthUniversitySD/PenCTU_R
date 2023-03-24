@@ -1,4 +1,4 @@
-# Author: Matthew Bailey and Lexy Sorrell
+# Author: Matthew Bailey
 # Date: 17MAR2023
 # R version: 4.2.2
 
@@ -30,7 +30,7 @@ labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_la
         
         if(!is.null(var_choices_str) & !is.na(dictionary_df[[var_choices_str]][i])){
           #String split 
-          value <- stringr::str_remove_all(dictionary[[var_choices_str]][i], '\"') %>% #Remove any quote marks
+          value <- stringr::str_remove_all(dictionary_df[[var_choices_str]][i], '\"') %>% #Remove any quote marks
             stringr::str_remove_all('\"') %>% 
             stringr::str_split_1(split_by) %>%
             stringr::str_trim() %>% 

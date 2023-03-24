@@ -1,5 +1,17 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
+
+notebook*
+
+# History files
+.Rhistory
+.Rapp.history
+
+# Session Data files
+.RData
+.RDataTmp
+
+# User-specific files
+.Ruserdata
 .Rproj.user/
 .Rproj.user
-notebook*

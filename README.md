@@ -77,3 +77,24 @@ from_rcc <- labels_from_dictionary(data_df = export, dictionary_df = data_dictio
 -   `var_labels_str`: chr - A string containing the name of the column in dictionary_df which contains the corresponding data labels
 
 ### Examples
+
+
+## check_field_completeness
+
+
+### Description
+This function calculates the completeness of each field in a given data frame.
+
+### Arguments
+
+- `data`: A data frame to check the completeness of its fields.
+
+- `by`: The column name as a string to group the data by before checking field completeness. This argument is optional.
+
+- `full`: A boolean that determines whether to return completeness information for missing values and a set of predefined codes. This argument is optional, and its default value is `FALSE`.
+
+### Return Value
+
+A data frame with the completeness of each field.
+
+### Examples
