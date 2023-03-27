@@ -27,8 +27,7 @@ check_field_completeness <- function(data, by = NULL, full = FALSE) {
   }
   
   NAs <- data %>%
-    summarise(across(everything(), ~sum(is.na(.)))) %>%
-    mutate(across(where(is.numeric), ~paste0(.x, '/', nrow(data), ' (', round(.x * 100 / nrow(data)), '%)'))) %>%
+    summarise(across(everything(), ~paste0(sum(is.na(.)), "/", n(), " (", round(sum(is.na(.)) / n() * 100), "%)"))) %>%
     mutate(Value = c('NA'), .before = everything())
   
   if (full) {
@@ -36,8 +35,7 @@ check_field_completeness <- function(data, by = NULL, full = FALSE) {
     values <- c('444 - Not applicable', '555 - Other', '666 - Prefer not to say', '777 - Missing', '888 - Spoiled', '999 - Unknown')
     lst <- lapply(codes, function(code) {
       data %>%
-        summarise(across(everything(), ~sum(. == code, na.rm = TRUE))) %>%
-        mutate(across(where(is.numeric), ~paste0(.x, '/', nrow(data), ' (', round(.x * 100 / nrow(data)), '%)'))) %>%
+        summarise(across(everything(), ~paste0(sum(. == code, na.rm = TRUE), "/", n(), " (", round(sum(is.na(.)) / n() * 100), "%)"))) %>%
         mutate(Value = c(values[which(codes == code)]), .before = everything())
     })
     
