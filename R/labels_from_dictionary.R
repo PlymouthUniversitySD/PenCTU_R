@@ -1,5 +1,5 @@
 # Author: Matthew Bailey
-# Date: 17MAR2023
+# Date: 24MAY2023
 # R version: 4.2.2
 
 library(dplyr) #1.1.0
@@ -24,6 +24,8 @@ library(haven) #2.5.1
 #' @export
 labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_labels_str, var_choices_str = NULL, split_by = ' \\| ', stata_path = NULL) {
   tryCatch({
+    
+    dictionary_df <- replace(dictionary_df, dictionary_df=='', NA) #Ensure blank dictionary items are marked as NA
     
     for(i in 1:nrow(dictionary_df)) {
       if(!is.null(data_df[[dictionary_df[[var_names_str]][i]]])){
