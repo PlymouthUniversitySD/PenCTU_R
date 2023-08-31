@@ -3,5 +3,6 @@
 export(check_field_completeness)
 export(extract_json_from_column)
 export(labels_from_dictionary)
+export(recruitment_by_site)
 export(recruitment_plot)
 importFrom(dplyr,"%>%")
