@@ -24,7 +24,7 @@ library(tidyr) #1.3.0
 #' @export
 #' 
 
-recruitment_plot <- function(data, recruitment_start, recruitment_length_months, recruitment_target, enrollment_date_column) {
+plot_recruitment_overall <- function(data, recruitment_start, recruitment_length_months, recruitment_target, enrollment_date_column) {
   
   today_date <- format(Sys.Date(), "%Y-%m-%d")
   data[[enrollment_date_column]] <- as.Date(data[[enrollment_date_column]])
