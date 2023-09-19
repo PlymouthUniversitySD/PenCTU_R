@@ -29,7 +29,7 @@ library(tidyr) #1.3.0
 #' @export
 #' 
 
-recruitment_by_site <- function(recruitment_start, enrollment_date_data, site_data, site_names=NULL, recruitment_end=Sys.Date()){
+plot_recruitment_by_site <- function(recruitment_start, enrollment_date_data, site_data, site_names=NULL, recruitment_end=Sys.Date()){
 
   recruitment_start <- as.Date(recruitment_start)
   recruitment_end <- as.Date(recruitment_end)
