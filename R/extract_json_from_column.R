@@ -2,24 +2,23 @@
 # Date: 24FEB2023
 # R version: 4.2.2
 
-library(dplyr) #1.1.0
-library(tidyr) #1.3.0
-library(purrr) #1.0.1
-library(jsonlite) #1.8.4
-
-#' Extract json from data frame column
+#' Extract JSON properties from a data frame column
 #'
-#' This function takes a data frame and extracts all json properties, from all JSON objects in a specified column, creates a new column for each property and populates the correct value of the property for each row. Also allows user to specify which JSON properties they are interested in - all others will be discarded.
-#' @param data The data frame which contains a column of json data
-#' @param col_name The name of the column containing the json data e.g. "redcap_record_metadata"
-#' @param prop_list A vector containing JSON properties that the user would like to extract from the json column (col_name) e.g. c("column_name_1", "another_column_name"), if not specified returns all extracted json properties. 
-#' @return The original data frame with each JSON property becoming its own column and the original json column (col_nam) being removed
-#' @usage 
-#' extract_json_from_column(data = df, col_name = "JSON", prop_list = NULL)
-#' extract_json_from_column(data = df, col_name = "JSON", prop_list = c("event.name", "event.status"))
-#' @importFrom dplyr "%>%"
+#' This function takes a data frame and extracts specified JSON properties from a column of JSON objects. Each property becomes its own column in the resulting data frame.
+#'
+#' @param data The data frame containing a column of JSON data
+#' @param col_name The name of the column containing the JSON data
+#' @param prop_list A vector of JSON properties to extract (optional). If not specified, all properties will be extracted.
+#' @return The data frame with each JSON property as a separate column, and the original JSON column removed
+#' @import dplyr
+#' @import tidyr
+#' @import purrr
+#' @import jsonlite
+#' @importFrom jsonlite fromJSON
 #' @export
 extract_json_from_column <- function(data, col_name, prop_list = NULL) {
+  stopifnot(is.data.frame(data), col_name %in% names(data))
+  
   tryCatch({
     temp <- data %>%
       dplyr::mutate(json_data = purrr::map(data[[col_name]], ~ unlist(jsonlite::fromJSON(.))) %>% bind_rows) %>% #Creates a new column (json_data) with unlisted JSON data

@@ -9,9 +9,9 @@ check_field_completeness(data, by = NULL, full = FALSE)
 \arguments{
 \item{data}{A data frame to check the completeness of its fields.}
 
-\item{by}{The column name as a string to group the data by before checking field completeness. This argument is optional.}
+\item{by}{The column name as a string to group the data by before checking field completeness (optional).}
 
-\item{full}{A boolean that determines whether to return completeness information for missing values and a set of predefined codes. This argument is optional, and its default value is \code{FALSE}.}
+\item{full}{A logical value that determines whether to return completeness information for missing values and a set of predefined codes (default: FALSE).}
 }
 \value{
 A data frame with the completeness of each field.

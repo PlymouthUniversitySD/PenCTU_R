@@ -2,33 +2,30 @@
 # Date: 24MAR2023
 # R version: 4.2.2
 
-library(dplyr) #1.1.0
-library(purrr) #1.0.1
-
 #' Check Field Completeness of a Data Frame
 #'
 #' This function calculates the completeness of each field in a given data frame.
 #'
 #' @param data A data frame to check the completeness of its fields.
-#' @param by The column name as a string to group the data by before checking field completeness. This argument is optional.
-#' @param full A boolean that determines whether to return completeness information for missing values and a set of predefined codes. This argument is optional, and its default value is \code{FALSE}.
-#'
+#' @param by The column name as a string to group the data by before checking field completeness (optional).
+#' @param full A logical value that determines whether to return completeness information for missing values and a set of predefined codes (default: FALSE).
 #' @return A data frame with the completeness of each field.
-#'
-#'
-#' @importFrom dplyr "%>%"
-#'
+#' @import dplyr
+#' @importFrom dplyr group_by summarize across mutate everything sym
 #' @export
 check_field_completeness <- function(data, by = NULL, full = FALSE) {
+  stopifnot(is.data.frame(data))
+  
   if (!is.null(by)) {
     data <- data %>% 
-      mutate(!!by := as.character(!!sym(by))) %>%
-      group_by(!!sym(by))
+      dplyr::mutate(!!by := as.character(!!dplyr::sym(by))) %>%
+      dplyr::group_by(!!dplyr::sym(by))
   }
   
   NAs <- data %>%
-    summarise(across(everything(), ~paste0(sum(is.na(.)), "/", n(), " (", round(sum(is.na(.)) / n() * 100), "%)"))) %>%
-    mutate(Value = c('NA'), .before = everything())
+    dplyr::summarize(across(dplyr::everything(), ~ paste0(sum(is.na(.)), "/", n(), " (", round(sum(is.na(.)) / n() * 100), "%)"))) %>%
+    dplyr::mutate(Value = c('NA'), .before = dplyr::everything())
+  
   
   if (full) {
     codes <- c(444, 555, 666, 777, 888, 999)
