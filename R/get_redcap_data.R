@@ -60,6 +60,4 @@ get_redcap_data <- function(api_token, test = FALSE, label = TRUE){
 }
 
 
-test <- get_redcap_data("CA4AB7859A2279EB76DBB12643656419", test = TRUE)
-
 
