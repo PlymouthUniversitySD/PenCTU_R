@@ -4,21 +4,12 @@
 \alias{get_redcap_data}
 \title{Get data from REDCap using an API token}
 \usage{
-get_redcap_data(
-  api_token,
-  test = FALSE,
-  labelVariables = TRUE,
-  labelValues = FALSE
-)
+get_redcap_data(api_token, test = FALSE)
 }
 \arguments{
 \item{api_token}{The API token for accessing REDCap.}
 
 \item{test}{Logical, indicating whether to use the test environment (default is FALSE).}
-
-\item{labelVariables}{Logical, indicating whether to label variables (default is TRUE).}
-
-\item{labelValues}{Logical, indicating whether to label values (default is FALSE).}
 }
 \value{
 A data frame containing the requested data.
@@ -32,6 +23,6 @@ Depending on the parameters, it can label both variables and values based on met
 }
 \examples{
 # Example usage:
-data <- get_redcap_data(api_token = "your_api_token")
+data <- get_redcap_data(api_token = "your_api_token", test = TRUE)
 
 }
