@@ -4,10 +4,17 @@
 \alias{allocation_data_cleaning}
 \title{Apply coded allocations to every row}
 \usage{
-allocation_data_cleaning(data, allocation_column, allocation_event_name)
+allocation_data_cleaning(
+  data,
+  data_dictionaryionary,
+  allocation_column,
+  allocation_event_name
+)
 }
 \arguments{
 \item{data}{A REDcap export dataset.}
+
+\item{data_dictionaryionary}{A REDcap export data dictionary.}
 
 \item{allocation_column}{Column name where allocation data is stored.}
 
@@ -22,7 +29,7 @@ This function applies allocations to all rows for a participant
 \examples{
 :
 Example useage:
-dataset <- allocation_data_cleaning(data, "pdallocation", "randomisation_arm_1")
+dataset <- allocation_data_cleaning(data, data_dictionary, "pdallocation", "randomisation_arm_1")
 
 
 }
