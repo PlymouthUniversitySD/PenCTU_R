@@ -23,7 +23,7 @@
 table_crf_completeness <- function(dataset, timepoint_name, category, api_token, test=FALSE){
   
   #run the data preparation function
-  timepoint_dataset <- table_crf_completeness_data_prep(dataset, timepoint_name, category, api_token, test)
+  timepoint_dataset <- table_crf_completeness_data_preparation(dataset, timepoint_name, category, api_token, test)
   
   #select the correct URL for the test or live database
   if(test){
