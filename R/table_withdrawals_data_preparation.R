@@ -6,8 +6,8 @@
 #' @param withdrawal_date_column The column in the dataset where the date of the withdrawal is specified.
 #' @param withdrawal_reason_column The column in the dataset where the reason for the withdrawal is specified.
 #' @param withdrawal_event_name The name of the event where withdrawals are recorded.
-#' @param allocation Logical, indicating wether the allocation data should be included in the output. Default is FALSE.
-#' @param early_discontinuation_column Name of the column where wether the withdrawal is an early discontinuation is specified. Default is NULL.
+#' @param allocation Logical, indicating whether the allocation data should be included in the output. Default is FALSE.
+#' @param early_discontinuation_column Name of the column where whether the withdrawal is an early discontinuation is specified. Default is NULL.
 #' @param full_withdrawal_option The response option for early_discontinuation_column that is selected for a full withdrawal only. Default is NULL.
 
 #'
@@ -20,15 +20,15 @@
 
 #' @examples
 #' # Example usage:
-#' withdrawal_table_data <- table_withdrawals_data_processing(dataset, "wiwithdrawdat", "wireason", "withdraw_arm_1", allocation = TRUE,
+#' withdrawal_table_data <- table_withdrawals_data_preparation(dataset, "wiwithdrawdat", "wireason", "withdraw_arm_1", allocation = TRUE,
 #'                           "wiearlydiscon", "Entire study")
-#' Example downstream useage: 
+#' Example downstream usage: 
 #'withdrawals_table <- flextable(withdrawal_table_data) %>%
 #'  set_table_properties(width = .75, layout = "autofit")
 #'  
 #'  @export
 
-table_withdrawals_data_processing <- function(dataset, withdrawal_date_column, withdrawal_reason_column, withdrawal_event_name, allocation = FALSE,
+table_withdrawals_data_preparation <- function(dataset, withdrawal_date_column, withdrawal_reason_column, withdrawal_event_name, allocation = FALSE,
                                               early_discontinuation_column = NULL, full_withdrawal_option = NULL){
   
   processdataset <- subset(dataset, redcap_event_name == withdrawal_event_name)
