@@ -1,7 +1,7 @@
 Package: PenCTU
 Type: Package
 Title: PenCTU Data Management Functions
-Version: 0.0.9
+Version: 0.0.10
 Authors@R: 
     c(person(given = "Matthew",
              family = "Bailey",
@@ -20,7 +20,8 @@ Imports:
   haven (>= 2.5.1),
   jsonlite (>= 1.8.4),
   ggplot2 (>= 3.4.2),
-  httr(>= 1.4.5)
+  httr(>= 1.4.5),
+  lubridate (>= 1.9.2)
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 License: MIT + file LICENSE
