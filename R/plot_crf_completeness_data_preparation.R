@@ -21,19 +21,6 @@
 #' @export
 #'
 
-
-
-
-
-
-
-
-
-
-category <- "Allocation"
-
-crf_complete_columns <- grep("_complete$", names(dataset), value = TRUE)
-
 plot_crf_completeness_dataset_preparation <- function(dataset, timepoint_names, category, api_token, test=FALSE){
   
   if (!(category %in% c('Allocation', 'Site'))) {
@@ -48,7 +35,7 @@ plot_crf_completeness_dataset_preparation <- function(dataset, timepoint_names, 
   }
   
   #load the instrument data
-  formData <- list("token"=token,
+  formData <- list("token"=api_token,
                    content='instrument',
                    format='csv',
                    returnFormat='csv'
@@ -57,7 +44,7 @@ plot_crf_completeness_dataset_preparation <- function(dataset, timepoint_names, 
   crf_data <- httr::content(response)
   
   #load the instrument-event mapping data
-  formData <- list("token"=token,
+  formData <- list("token"=api_token,
                    content='formEventMapping',
                    format='csv',
                    'arms[0]'='1',
@@ -73,7 +60,7 @@ plot_crf_completeness_dataset_preparation <- function(dataset, timepoint_names, 
     mutate(completeness_column_name = paste0(instrument_name, "_complete"))
   
   #load event data from API
-  formData <- list("token"=token,
+  formData <- list("token"=api_token,
                    content='event',
                    format='csv',
                    returnFormat='csv'
@@ -95,7 +82,6 @@ plot_crf_completeness_dataset_preparation <- function(dataset, timepoint_names, 
       select(all_of(selected_columns))  
   }
   
-  
   result_list <- list()
   for (timepoint_name in timepoint_names) {
     subset_rows <- all_event_data[all_event_data$unique_event_name == timepoint_name, ]
@@ -103,17 +89,8 @@ plot_crf_completeness_dataset_preparation <- function(dataset, timepoint_names, 
     completeness_columns <- subset_rows$completeness_column_name
   
     subset_table <- table_dataset[table_dataset$redcap_event_name == timepoint_name, ]
-    completeness_values <- apply(subset_table[, completeness_columns], 1, function(row) {
-      if (any(!is.na(row)) && ((any(row %in% c(1, 2)) && any(row == 0)) || (any(row == 1) && any(row == 2)))) {
-        return("Partially complete")
-      } else if (all(row == 2, na.rm = TRUE) || all(is.na(row) | row == 2)) {
-        return("Complete")
-      } else if (all(is.na(row)) || all(row == 0) || all(is.na(row) | row == 0)) {
-        return("Not started")
-      } else {
-        return("Undefined")  # You can adjust this based on your specific needs
-      }
-    }) 
+    completeness_values <- apply(subset_table[, completeness_columns], 1, calculate_completeness)
+       
     subset_table$timepoint_completeness <- completeness_values
   
     result_list[[timepoint_name]] <- subset_table
