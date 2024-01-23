@@ -1,3 +1,6 @@
+# Author: Matthew Bailey
+# Date: 23JAN2024
+# R version: 4.3.1
 #' Get data from REDCap using an API token
 #'
 #' This function retrieves data from REDCap using the REDCap API and an API token.

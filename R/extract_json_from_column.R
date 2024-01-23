@@ -12,8 +12,7 @@
 #' @return The data frame with each JSON property as a separate column, and the original JSON column removed
 #' @import dplyr
 #' @import tidyr
-#' @import purrr
-#' @import jsonlite
+#' @importFrom purrr map
 #' @importFrom jsonlite fromJSON
 #' @export
 extract_json_from_column <- function(data, col_name, prop_list = NULL) {

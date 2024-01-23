@@ -1,3 +1,6 @@
+# Author: Paigan Aspinall
+# Date: 23JAN2024
+# R version: 4.2.2
 #' Prepare a dataset from which to plot a demographics summary table.
 #'
 #' This function calculates the age at registration (if required) and isolates the desired demographics data into a new dataset.
@@ -25,7 +28,7 @@
 #'
 #' demographics_table_data <- table_demographics_data_preparation(dataset, demographic_columns, "facetoface_screeni_arm_1",
 #'                                                                    "dmyob", "pdregisterdat", "participant_identi_arm_1")
-#' example downstream useage:
+#' #example downstream usage:
 #' baseline_characteristics <-  demographics_table_data %>% 
 #' tbl_summary(by = category,
 #'             label = list(Age ~ "Age", dmsexatbirth ~ "Sex at birth", dmethnic ~ "Ethnicity",
@@ -38,10 +41,9 @@
 #'                              all_continuous() ~ "{mean} ({sd})")) %>%
 #'   italicize_levels() %>%
 #'   bold_labels() %>%
-#'   modify_caption("**Participant Characteristics**") %>%
+#'   modify_caption("Participant Characteristics") %>%
 #'   as_flex_table()
-#' }
-
+#' 
 #'
 #' @export
 #' 

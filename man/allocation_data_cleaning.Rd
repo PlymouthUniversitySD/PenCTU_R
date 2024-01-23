@@ -6,7 +6,7 @@
 \usage{
 allocation_data_cleaning(
   data,
-  data_dictionaryionary,
+  data_dictionary,
   allocation_column,
   allocation_event_name
 )
@@ -14,7 +14,7 @@ allocation_data_cleaning(
 \arguments{
 \item{data}{A REDcap export dataset.}
 
-\item{data_dictionaryionary}{A REDcap export data dictionary.}
+\item{data_dictionary}{A REDcap export data dictionary.}
 
 \item{allocation_column}{Column name where allocation data is stored.}
 
