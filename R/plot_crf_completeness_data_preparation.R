@@ -71,16 +71,8 @@ plot_crf_completeness_dataset_preparation <- function(dataset, timepoint_names, 
   all_event_data <- merge(all_event_data, event_data, by = "unique_event_name", all.x = TRUE)
   
   #subset the dataset so that only the record_id, category and required completeness columns are present
-  if(category == "Allocation"){
-    selected_columns <- c("Allocation", "redcap_event_name", all_event_data$completeness_column_name)
-    table_dataset <- dataset %>%
-      select(all_of(selected_columns))  
-  }
-  if(category == "Site"){
-    selected_columns <- c("Site",  "redcap_event_name", all_event_data$completeness_column_name)
-    table_dataset <- dataset %>%
-      select(all_of(selected_columns))  
-  }
+  table_dataset <- dataset %>%
+    select(c(category,  "redcap_event_name", all_event_data$completeness_column_name))  
   
   result_list <- list()
   for (timepoint_name in timepoint_names) {
