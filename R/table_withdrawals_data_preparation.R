@@ -1,3 +1,6 @@
+# Author: Paigan Aspinall
+# Date: 23JAN2024
+# R version: 4.2.2
 #' Prepare a dataset from which to plot a withdrawals table.
 #'
 #' This function removed early discontinuations (if required) and selects only the required withdrawal data.

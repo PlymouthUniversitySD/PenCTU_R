@@ -1,3 +1,6 @@
+# Author: Paigan Aspinall
+# Date: 23JAN2024
+# R version: 4.2.2
 #' Generate a table of CRF completeness at a specified time point.
 #'
 #' This function produces a flextable that summarises the number of complete and incomplete CRFs at a defined timepoint.

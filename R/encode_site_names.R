@@ -1,3 +1,6 @@
+# Author: Paigan Aspinall
+# Date: 23JAN2024
+# R version: 4.2.2
 #' Add site names to the dataset
 #'
 #' This function retrieves DAG data from REDcap and adds a Site column to the dataset which contains the DAG name.

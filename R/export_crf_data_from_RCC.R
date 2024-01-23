@@ -15,7 +15,8 @@
 #' export_crf_data_from_RCC("CRF_Name", "access_token")
 #' 
 #' @import dplyr
-#' @import jsonlite
+#' @importFrom jsonlite fromJSON
+
 #' @import httr
 export_crf_data_from_RCC <- function(crf_name, token, env) {
   stopifnot(is.character(crf_name))

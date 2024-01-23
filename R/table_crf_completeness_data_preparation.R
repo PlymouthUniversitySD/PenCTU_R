@@ -1,3 +1,6 @@
+# Author: Paigan Aspinall
+# Date: 23JAN2024
+# R version: 4.2.2
 #' Generate a dataset from RCA data to be used in combination with the table_crf_completeness function. 
 #'
 #' This function produces datset ready to be processed into a crf completeness by timepoint summary figure.
