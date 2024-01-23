@@ -1,3 +1,6 @@
+# Author: Paigan Aspinall
+# Date: 23JAN2024
+# R version: 4.2.2
 #' Calculates the completeness of a timepoint based on the *timepoint_name*_compelte column values.
 #'
 #' Outputs "Complete", "Partially complete", "Not started or "Undefined" as the completeness value for a row in a defined dataset.Used in conjundtion with plot_crf_completeness_data_preparation function.

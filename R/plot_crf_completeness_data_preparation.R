@@ -1,3 +1,6 @@
+# Author: Paigan Aspinall
+# Date: 23JAN2024
+# R version: 4.2.2
 #' Generate a dataset of timepoint completeness to create a completeness plot.
 #'
 #' This function produces a dataset which gives the completeness of each defined timepoint for each participant.
