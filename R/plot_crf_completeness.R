@@ -1,3 +1,6 @@
+# Author: Paigan Aspinall
+# Date: 23JAN2024
+# R version: 4.2.2
 #' Generate a stacked barchart to show timepoint completeness.
 #'
 #' This function produces a barchat that visualizes event completeness by allocation or site.
