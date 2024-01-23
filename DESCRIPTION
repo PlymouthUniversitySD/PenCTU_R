@@ -1,12 +1,12 @@
 Package: PenCTU
 Type: Package
 Title: PenCTU Data Management Functions
-Version: 0.0.10
+Version: 1.0.0
 Authors@R: 
-    c(person(given = "Matthew",
-             family = "Bailey",
+    c(person(given = "PenCTU",
+             family = "Data",
              role = c("aut", "cre", "cph"),
-             email = "matthew.bailey@plymouth.ac.uk"))
+             email = "penctudata@plymouth.ac.uk"))
 Description: A set of functions that speed up data management, cleaning and visualisation at PenCTU.
 Encoding: UTF-8
 Depends: 
