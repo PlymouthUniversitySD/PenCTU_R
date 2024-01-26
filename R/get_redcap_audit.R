@@ -9,13 +9,13 @@
 #' @param api_token The API token for accessing REDCap.
 #' @param test Logical, indicating whether to use the test environment (default is FALSE).
 #'
-#' @return A dataframe containing the requested data.
+#' @return A data frame containing the requested data.
 #'
 #'
 #' @importFrom dplyr "%>%"
 #' 
 #' @examples:
-#' Example useage:
+#' Example usage:
 #' 
 #' audit_data <- get_redcap_audit("your_api_token", test=TRUE)
 #'
@@ -32,7 +32,7 @@ get_redcap_audit <- function(api_token, test = FALSE){
     }
     
   #get audit log data
-  formData <- list("token"=token,
+  formData <- list("token"=api_token,
                  content='log',
                  logtype='',
                  user='',
