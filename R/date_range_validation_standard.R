@@ -1,5 +1,5 @@
 #' Author: Paigan Aspinall
-#' Date & version: 08FEB2024 V1.0.0
+#' Date & version: 08FEB2024 V1.0.1
 #' R version: 4.2.2
 #'
 #' Generate a dataset that returns all instances where the date validation rules defined in an external CSV are returned.
@@ -7,17 +7,14 @@
 #' Produces a dataset of potentially invalid date data.
 #'
 #' @param dataset A complete dataset.
-#' @param rules A CSV file that is imported and contains all of the date range checks to be performed. Created using the template:R:\Data Management\R Files\DateValidationTemplate_V1.0
+#' @param rules A CSV file that is imported and contains all of the date range checks to be performed. Created using the template: DateValidationTemplate_V1.0
 #'
 #' @return A dataset summarising potentially invalid date data.
 #'
 #' @importFrom dplyr "%>%"
 #' 
 #' @examples
-#' 
-#' data_queries <- read.csv("DataQueries.csv", colClasses = c("Record..Sorted.by.DAG." = "character"))
-#' colnames(data_queries)[colnames(data_queries) == "Record..Sorted.by.DAG."] <- "record_id"
-#' 
+
 #' date_validation_output_standard <- date_range_validation(dataset, rules)
 #'
 #' @export
