@@ -19,7 +19,7 @@ add_missing_events(
 
 \item{condition}{Optional parameter that can be applied, e.g. if the events for intervention and control participants are different. Default is NULL.}
 
-\item{allocation}{Logical, if allocation sare used in the study then this should be true. Default to TRUE.}
+\item{allocation}{Logical, if allocations are used in the study then this should be true. Default to TRUE.}
 
 \item{site}{Logical, if sites are used in the study then this should be true. Default to TRUE.}
 }

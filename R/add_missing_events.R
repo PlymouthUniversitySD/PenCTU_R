@@ -1,5 +1,5 @@
 # Author: Paigan Aspinall
-# Date: 09JAN2024
+# Date & version: 09JAN2024 V1.1.0
 # R version: 4.2.2
 
 #' Identify events missing from the dataset and, if their expected event date has passed, add them to the data.
@@ -9,7 +9,7 @@
 #' @param dataset A REDCap export dataset.
 #' @param event_data A CSV file containing the events and their associated anchors - template located in Github named "20240109_AddMissingEventsTemplate.csv".
 #' @param condition Optional parameter that can be applied, e.g. if the events for intervention and control participants are different. Default is NULL.
-#' @param allocation Logical, if allocation sare used in the study then this should be true. Default to TRUE.
+#' @param allocation Logical, if allocations are used in the study then this should be true. Default to TRUE.
 #' @param site Logical, if sites are used in the study then this should be true. Default to TRUE.
 
 #' @return A data frame containing missing events.
@@ -52,15 +52,6 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
   names(filtered_data)[which(names(filtered_data)=="redcap_event_name")] <- "anchor_event"
   combinations <- merge(combinations, filtered_data, by=c("record_id", "anchor_event"), all.x=TRUE)
 
-  #function to replace the 'anchor_date' column with the corresponding date value
-  replace_with_date <- function(row) {
-    anchor_date_col <- as.character(row[['anchor_date']])
-    if (!is.na(anchor_date_col) && anchor_date_col %in% names(row)) {
-      row[['anchor_date']] <- row[[anchor_date_col]]
-    }
-    return(row)
-  }
-  
   #apply the function to each row in the combinations dataset
   combinations <- t(apply(combinations, 1, replace_with_date))
   combinations <- as.data.frame(combinations)
