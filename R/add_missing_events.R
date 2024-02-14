@@ -1,5 +1,5 @@
 # Author: Paigan Aspinall
-# Date & version: 09JAN2024 V1.1.0
+# Date & version: 15FEB2024 V1.1.1
 # R version: 4.2.2
 
 #' Identify events missing from the dataset and, if their expected event date has passed, add them to the data.
@@ -34,9 +34,9 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
   
   #if a condition is being used, filter based on this
   if(!is.na(condition)){
-  filtered_data <- dataset %>% filter(eval(parse(text = condition)))}
+    filtered_data <- dataset %>% filter(eval(parse(text = condition)))}
   filtered_data$redcap_event_name <- as.character(filtered_data$redcap_event_name)
-
+  
   #group the data based on record id
   grouped_large <- filtered_data %>%
     group_by(record_id)
@@ -51,11 +51,11 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
   combinations <- merge(combinations, event_data, by.x = "redcap_event_name", by.y="event_name", all.x=TRUE )
   names(filtered_data)[which(names(filtered_data)=="redcap_event_name")] <- "anchor_event"
   combinations <- merge(combinations, filtered_data, by=c("record_id", "anchor_event"), all.x=TRUE)
-
+  
   #apply the function to each row in the combinations dataset
   combinations <- t(apply(combinations, 1, replace_with_date))
   combinations <- as.data.frame(combinations)
-
+  
   #select necessary columns from the combinations dataset
   combinations <- select(combinations, record_id, anchor_event, redcap_event_name, anchor_date, event_date, days_total)
   
@@ -67,7 +67,7 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
   #identify missing events based on record_id and redcap_event_name not present in dataset
   missing_events <- combinations[!(paste(combinations$record_id, combinations$redcap_event_name) %in% paste(dataset$record_id, dataset$redcap_event_name)), ]
   missing_event_dates <- missing_events
-
+  
   #create blank dataset with the required columns
   new_columns <- dataset
   new_columns <- dataset[FALSE, ]
@@ -187,7 +187,7 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
     missing_rows <- left_join(missing_rows, missing_events %>% select(record_id, redcap_event_name), by = "record_id")
     desired_columns <- c("record_id", "redcap_event_name")
   }   
-      
+  
   #add in all other columns from the dataset with NA values
   other_columns <- setdiff(names(dataset), desired_columns)
   datnum_rows <- nrow(missing_rows)
@@ -202,11 +202,11 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
   
   #remove events for which the expected event date is in the future
   data_output_dates <- merge(data_output, missing_event_dates, by=c("record_id", "redcap_event_name"), all.x=TRUE)
-  filtered_data <- subset(data_output_dates, is.na(expected_event_date) | expected_event_date <= Sys.Date())
+  filtered_data <- subset(data_output_dates, (!is.na(anchor_event) & is.na(expected_event_date)) | expected_event_date <= Sys.Date())
   
   #remove columns that are not required
   filtered_data <- subset(filtered_data, select = -c(anchor_event, anchor_date, event_date, days_total))
   
   return(filtered_data)
-
+  
 }
