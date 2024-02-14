@@ -1,5 +1,5 @@
 #' Author: Paigan Aspinall
-#' Date & version: 08FEB2024 V1.0.1
+#' Date & version: 12FEB2024 V1.0.2
 #' R version: 4.2.2
 #'
 #' Generate a dataset that returns all instances where the date validation rules defined in an external CSV are returned.
