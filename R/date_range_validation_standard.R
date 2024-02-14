@@ -15,7 +15,7 @@
 #' 
 #' @examples
 
-#' date_validation_output_standard <- date_range_validation(dataset, rules)
+#' date_validation_output_standard <- date_range_validation_standard(dataset, rules)
 #'
 #' @export
 #'

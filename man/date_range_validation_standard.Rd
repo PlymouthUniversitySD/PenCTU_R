@@ -23,6 +23,6 @@ Generate a dataset that returns all instances where the date validation rules de
 Produces a dataset of potentially invalid date data.
 }
 \examples{
-date_validation_output_standard <- date_range_validation(dataset, rules)
+date_validation_output_standard <- date_range_validation_standard(dataset, rules)
 
 }
