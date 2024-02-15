@@ -1,31 +1,141 @@
-# Author: Paigan Aspinall
-# Date & version: 15FEB2024 V1.1.1
-# R version: 4.2.2
+#Author: Paigan Aspinall
+#Date & version: 15FEB2024 V1.0.1
+#R version: 4.2.2
 
-#' Identify events missing from the dataset and, if their expected event date has passed, add them to the data.
-#'
-#' This function adds a row for any event that is expected in the data and is missing. NOTE this script should be run after allocation_data_cleaning and before encode_site_names.
-#'
-#' @param dataset A REDCap export dataset.
-#' @param event_data A CSV file containing the events and their associated anchors - template located in Github named "20240109_AddMissingEventsTemplate.csv".
-#' @param condition Optional parameter that can be applied, e.g. if the events for intervention and control participants are different. Default is NULL.
-#' @param allocation Logical, if allocations are used in the study then this should be true. Default to TRUE.
-#' @param site Logical, if sites are used in the study then this should be true. Default to TRUE.
+#Unblinded weekly report script
 
-#' @return A data frame containing missing events.
-#'
-#'
-#' @importFrom dplyr "%>%"
-#' 
-#' @examples:
-#' Example usage:
-#' intervention_events <- read.csv("20240108_ExpectedEventsInvervention_V1.0.csv")
-#' condition <- "Allocation == 'Intervention'"
-#' 
-#' complete_dataset <- add_missing_events(dataset, event_data, condition)
-#'
-#' @export
-#'
+#Set your API token
+token <- '86CDF603FECAD55D05B27F6D3FA5ACEC'
+
+plot_recruitment_overall <- function(data, recruitment_start, recruitment_length_months, recruitment_target, enrollment_date_column) {
+  
+  #get today's date
+  today_date <- as.Date(format(Sys.Date(), "%Y-%m-%d"))
+  
+  #convert date values to date format
+  data[[enrollment_date_column]] <- as.Date(data[[enrollment_date_column]])
+  recruitment_start <- as.Date(recruitment_start)
+  #calculate the end date of recruitment
+  recruitment_end <- recruitment_start + months(recruitment_length_months)
+  
+  #prepare enrolment data
+  enrollment_data <- data %>% 
+    #create a year-month column
+    mutate(year_month = format(.data[[enrollment_date_column]], "%Y-%m")) %>% 
+    #Remove NA values from date column
+    filter(!is.na(.data[[enrollment_date_column]])) %>%
+    #count enrolments per year-month
+    count(year_month, name="count") %>%
+    #arrange by date
+    arrange(as.Date(paste0(year_month, "-01")))
+  
+  #generate a sequence of year-months from recruitment start
+  year_months <- seq(from = floor_date(recruitment_start, unit = "month"), 
+                     to = floor_date(today_date, unit = "month"), by = "1 month")
+  year_months <- format(year_months, "%Y-%m")
+  #create a dataframe with all year-months
+  all_months_data <- data.frame(year_month = year_months)
+  #left join enrollment data wkith all months data
+  enrollment_data <- all_months_data %>%
+    left_join(enrollment_data, by = "year_month") %>%
+    #replace NA values with 0
+    mutate(count = replace_na(count, 0))
+  #calculate a cumulative count of enrollments
+  enrollment_data <- enrollment_data %>%
+    mutate(cumulative_count = cumsum(count))
+  
+  #convert year-month column into date format
+  enrollment_data$year_month <- as.Date(paste0(enrollment_data$year_month, "-01"), format = "%Y-%m-%d")
+  
+  #generate the recruitment plot
+  recruitment_plot <- ggplot(enrollment_data, aes(x = year_month, y = cumulative_count)) +
+    geom_line(aes(color = "Actual"), size = 1) +
+    geom_point(aes(color = "Actual"), size = 3) +
+    geom_segment(aes(x = year_month[1], y = recruitment_target/recruitment_length_months, xend = recruitment_end, yend = recruitment_target, color = "Target"), linetype = "dashed") +
+    ylab("Recruitment") + xlab("Date") +
+    geom_text(aes(label=cumulative_count), vjust=-0.7)+
+    scale_x_date(breaks = "1 month", labels = scales::date_format("%b %Y")) +
+    #Amended breaks=seq
+    scale_y_continuous(expand = c(0, 0), limits = c(0, (recruitment_target+10)), breaks=seq(0, 300, 50)) +
+    #Amended labels
+    scale_color_manual(name = "Key:", values = c("Actual" = "#F8766D", "Target" = "#00B0F6"), labels = c("Actual recruitment", "Target recruitment")) +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  
+  recruitment_plot
+}
+
+plot_recruitment_by_site <- function(recruitment_start, enrolment_date_data, site_data, site_names=NULL, recruitment_end=Sys.Date()){
+  
+  # Convert parameters to appropriate date formats
+  recruitment_start <- as.Date(recruitment_start)
+  recruitment_end <- as.Date(recruitment_end)
+  enrolment_date_data <- as.Date(enrolment_date_data)
+  today_date <- format(Sys.Date(), "%Y-%m-%d")
+  
+  # Initialize an empty dataframe to store plot data
+  plot_data <- data.frame()
+  
+  # If site_names is NULL, generate it from unique non-NA values in site_data
+  if (is.null(site_names)) {
+    site_names <- unique(na.omit(site_data))
+  }
+  
+  # Calculate recruitment length in months
+  recruitment_length_months <- ceiling(difftime(recruitment_end, recruitment_start, units = "days") / 30.44)
+  
+  # Prepare enrolment data for plotting
+  enrolment_data <- tibble(enrolment_date_data = enrolment_date_data, site_data = site_data) %>%
+    mutate(year_month = format(enrolment_date_data, "%Y-%m")) %>% 
+    filter(!is.na(enrolment_date_data)) %>%
+    count(site_data, year_month, name = "count") %>%
+    arrange(site_data, as.Date(paste0(year_month, "-01")))
+  
+  # Iterate over each site to generate plot data
+  for (site_name in site_names) {
+    month_count_site <- enrolment_data %>%
+      filter(site_data == site_name)
+    recruits_site <- data.frame(year_month = seq(as.Date(format(recruitment_start, "%Y-%m-01")), 
+                                                 by = "1 month", 
+                                                 length.out = recruitment_length_months),
+                                count = rep(0, recruitment_length_months), # Initialize count with zeros
+                                Site = site_name)%>% 
+      mutate(year_month = format(year_month, "%Y-%m"))
+    # Check if there are matching year_month values before assignment
+    matching_indices <- match(month_count_site$year_month, recruits_site$year_month)
+    # Assign values only if matching indices are found and not NA
+    if (!any(is.na(matching_indices))) {
+      recruits_site$count[matching_indices[!is.na(matching_indices)]] <- month_count_site$count
+    }
+    recruits_site$cumulative_count <- cumsum(recruits_site$count)
+    plot_data <- rbind(plot_data, recruits_site)
+  }
+  
+  
+  # Define custom colors for sites
+  custom_colors <- c("#F8766D", "#00BFC4", "#CD9600", "#C77CFF","#7CAE00","#FB61D7","#619CFF","#00BA38","#A3A500")
+  
+  # Prepare plot data for plotting
+  plot_data <- plot_data %>%
+    arrange(Site, year_month) %>%
+    group_by(Site) %>%
+    mutate(cumulative_count = cumsum(count)) %>%
+    mutate(year_month = as.Date(paste0(year_month, "-01"))) %>%
+    mutate(cumulative_count = ifelse(year_month > as.Date(today_date), NA, cumulative_count))
+  
+  # Generate recruitment by site plot
+  recruitment_by_site_plot <- ggplot(data = plot_data, aes(x = year_month, y = cumulative_count, group = Site)) +
+    geom_line(aes(color = Site), size = 2) +
+    geom_point(aes(color = Site, shape = Site), size = 3) +
+    labs(x = "Month", y = "Number recruited", title = "Patients recruited by site") +
+    scale_x_date(breaks = "1 month", labels = scales::date_format("%b %Y"))+
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Adjust x-axis labels angle
+  
+  # Return recruitment by site plot
+  return(recruitment_by_site_plot)
+}
 
 add_missing_events <- function(dataset, event_data, condition=NULL, allocation=TRUE, site=TRUE){
   
@@ -202,7 +312,10 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
   
   #remove events for which the expected event date is in the future
   data_output_dates <- merge(data_output, missing_event_dates, by=c("record_id", "redcap_event_name"), all.x=TRUE)
-  filtered_data <- subset(data_output_dates, (!is.na(anchor_event) & is.na(expected_event_date)) | expected_event_date <= Sys.Date())
+  filtered_data <- subset(data_output_dates, 
+                          (is.na(anchor_event)) | 
+                            (!is.na(anchor_event) & expected_event_date <= Sys.Date()))
+  
   
   #remove columns that are not required
   filtered_data <- subset(filtered_data, select = -c(anchor_event, anchor_date, event_date, days_total))
