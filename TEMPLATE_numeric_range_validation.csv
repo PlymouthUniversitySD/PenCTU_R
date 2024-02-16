@@ -1,0 +1,5 @@
+﻿field_name ,event_name,range_check_type,lower_value,upper_value,error_message
+howalkingspeed,baseline,upper,NA,10,walking speed is greater than 10 mps
+howalkingspeed,baseline,lower,5,NA,walking speed is less than 10 mps
+,,,,,
+*delete lines 2-6 when using template,,,,,
