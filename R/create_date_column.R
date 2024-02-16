@@ -1,5 +1,5 @@
 # Author: Paigan Aspinall
-# Date & version: 16FEB2024 V2.0
+# Date & version: 16FEB2024 V2.1
 # R version: 4.2.2
 #' Takes partial date fields and creates a single date field
 #'
@@ -34,9 +34,8 @@ create_date_column <- function(dataset, year_column, month_column, day_columns, 
   
   
   if (!is_month_numeric) {
-    #replace unknown values in day and month columns
-    dataset_copy[, day_columns] <- lapply(dataset_copy[, day_columns], function(x) {
-      ifelse(x == 'Unknown', '01', x)})
+    dataset_copy$day <- ifelse(dataset_copy$day == '999', '01', dataset_copy$day)
+    
     dataset_copy <- dataset_copy %>%
       mutate(month = case_when(
         {{month_column}} == 'Unknown' ~ "January",
@@ -44,6 +43,8 @@ create_date_column <- function(dataset, year_column, month_column, day_columns, 
         TRUE ~ as.character({{month_column}})
       ))
   } else {
+    
+    dataset_copy$day <- ifelse(dataset_copy$day == '999', '01', dataset_copy$day)
     
     
     dataset_copy <- dataset_copy %>%
