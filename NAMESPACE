@@ -3,6 +3,7 @@
 export(allocation_data_cleaning)
 export(calculate_completeness)
 export(check_field_completeness)
+export(date_range_validation_dynamic)
 export(encode_site_names)
 export(export_crf_data_from_RCC)
 export(extract_json_from_column)
