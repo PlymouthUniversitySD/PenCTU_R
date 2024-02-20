@@ -1,0 +1,5 @@
+﻿field_name ,event_name,range_check_type,lower_field_name,upper_field_name,error_message
+aerecover2dat,sae_reporting_arm_1,upper,NA,aecomplete2dat,date of SAE recovery is after the date of reporting SAE outcome
+aecomplete2dat,sae_reporting_arm_1,lower,aeonsetdat,NA,date of SAE resolution is before date of onset
+,,,,,
+*delete lines 2-5 when using template,,,,,
