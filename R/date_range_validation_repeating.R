@@ -21,7 +21,7 @@
 #' @export
 #'
 
-function(dataset, rules) {
+date_range_validation_repeating <- function(dataset, rules) {
   #initialize an empty dataframe to store the results
   output_df <- data.frame(record_id = numeric(),
                           field_name = character(),
