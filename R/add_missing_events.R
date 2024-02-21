@@ -1,6 +1,6 @@
-# Author: Paigan Aspinall
-# Date & version: 15FEB2024 V1.1.1
-# R version: 4.2.2
+#Author: Paigan Aspinall
+#Date & version: 15FEB2024 V1.0.1
+#R version: 4.2.2
 
 #' Identify events missing from the dataset and, if their expected event date has passed, add them to the data.
 #'
@@ -202,7 +202,10 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
   
   #remove events for which the expected event date is in the future
   data_output_dates <- merge(data_output, missing_event_dates, by=c("record_id", "redcap_event_name"), all.x=TRUE)
-  filtered_data <- subset(data_output_dates, (!is.na(anchor_event) & is.na(expected_event_date)) | expected_event_date <= Sys.Date())
+  filtered_data <- subset(data_output_dates, 
+                          (is.na(anchor_event)) | 
+                            (!is.na(anchor_event) & expected_event_date <= Sys.Date()))
+  
   
   #remove columns that are not required
   filtered_data <- subset(filtered_data, select = -c(anchor_event, anchor_date, event_date, days_total))
