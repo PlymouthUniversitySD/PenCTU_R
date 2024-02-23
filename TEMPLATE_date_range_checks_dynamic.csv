@@ -1,0 +1,5 @@
+﻿field_name,event_name,range_check_type,lower_field_name,lower_event_name,lower_offset_days,upper_field_name,upper_event_name,upper_offset_days,error_message
+mhpddat,facetoface_screeni_arm_1,lower,dmyob,facetoface_screeni_arm_1,10950,NA,NA,NA,date of PD diagnosis was before age 30
+hoappnextdat,week_0_blinded_ass_arm_1,upper,NA,NA,NA,hoappointdat,week_0_blinded_ass_arm_1,19,week 2 blinded assessment scheduled for more than 2 weeks (+/- 5 days) after week 0
+,,,,,,,,,
+*delete lines 2-5 when using template,,,,,,,,,

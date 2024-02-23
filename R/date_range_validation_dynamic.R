@@ -1,5 +1,5 @@
 #' Author: Paigan Aspinall
-#' Date & version: 08FEB2024 V1.0.0
+#' Date & version: 10FEB2024 V1.0.1
 #' R version: 4.2.2
 #'
 #' Generate a dataset that returns all instances where the date validation rules defined in an external CSV are returned.
@@ -43,14 +43,14 @@ date_range_validation_dynamic <- function(dataset, rules) {
     filtered_data <- dataset %>%
       filter(record_id %in% unique(dataset$record_id[dataset$redcap_event_name == event_name]) &
                redcap_event_name == event_name & !is.na(get(field_name)))
-  
+    
     #apply date range checks based on 'range_check_type'
     if (range_check_type == "lower") {
       #create a new filtered dataset where redcap_event_name == lower_event_name
       lower_event_data <- dataset %>%
         filter(redcap_event_name == lower_event_name)
       lower_event_data[[lower_field_name]] <- as.Date(lower_event_data[[lower_field_name]])
-      lower_event_data$lower_date <- as.Date(lower_event_data[[lower_field_name]])-offset
+      lower_event_data$lower_date <- as.Date(lower_event_data[[lower_field_name]])+offset
       
       #merge the data from filtered_data and lower_event_data by record_id
       merged_data <- merge(filtered_data, lower_event_data, by = "record_id", all.x = TRUE)
@@ -79,7 +79,7 @@ date_range_validation_dynamic <- function(dataset, rules) {
       upper_field_name <- paste0(upper_field_name, '.y')
       merged_data[[field_name]] <- as.Date(merged_data[[field_name]])
       merged_data$upper_date <- as.Date(merged_data$upper_date)
-      subset_data <- subset(merged_data, merged_data[[field_name]] < merged_data$upper_date)
+      subset_data <- subset(merged_data, merged_data[[field_name]] > merged_data$upper_date)
       if (nrow(subset_data) > 0) {
         subset_data$error <- error_message
         #add error_message, field_name, and event_name to the subset_data
@@ -96,3 +96,4 @@ date_range_validation_dynamic <- function(dataset, rules) {
   
   return(final_subset)
 }
+
