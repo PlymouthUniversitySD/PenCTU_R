@@ -33,7 +33,7 @@ encode_site_names <- function(dataset, api_token, test = FALSE){
     url <- "https://clinicaltrials.plymouth.ac.uk/api/"
   }
   #get data access group data
-  formData <- list("token"=token,
+  formData <- list("token"=api_token,
                    content='dag',
                    format='csv',
                    returnFormat='csv'

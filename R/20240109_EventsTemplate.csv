@@ -1,0 +1,5 @@
+﻿event_name,anchor_date,anchor_event,event_date,days_after,days_upper,days_lower
+week_2_blinded_ass_arm_1,hoappointdat,week_0_blinded_ass_arm_1,hoappointdat,14,5,5
+week_6_blinded_ass_arm_1,hoappointdat,week_0_blinded_ass_arm_1,hoappointdat,42,5,5
+,,,,,,
+*remove lines 2-5 when using as a template,,,,,,
