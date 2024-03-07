@@ -15,7 +15,7 @@ plot_crf_completeness(
 \arguments{
 \item{timepoint_names}{A vector containing the list of timepoint names.}
 
-\item{category}{The category by which data will be organised, must be "Site" or "Allocation".}
+\item{category}{The category by which data will be organised (e.g. "Site" or "Allocation").}
 
 \item{api_token}{The API token for accessing REDCap.}
 

@@ -3,7 +3,7 @@
 \name{date_range_validation_dynamic}
 \alias{date_range_validation_dynamic}
 \title{Author: Paigan Aspinall
-Date & version: 08FEB2024 V1.0.0
+Date & version: 10FEB2024 V1.0.1
 R version: 4.2.2}
 \usage{
 date_range_validation_dynamic(dataset, rules)
