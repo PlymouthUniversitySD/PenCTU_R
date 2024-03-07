@@ -13,7 +13,7 @@ plot_recruitment_overall(
 )
 }
 \arguments{
-\item{data}{A data frame to collect enrollment date data from.}
+\item{data}{A data frame to collect enrolment date data from.}
 
 \item{recruitment_start}{A date which is the start date of recruitment, given in "2023-01-01" format.}
 
@@ -21,11 +21,17 @@ plot_recruitment_overall(
 
 \item{recruitment_target}{A number which is the target number of participants to be recruited.}
 
-\item{enrollment_date_column}{A column which is where the enrollment date of participants is defined, given in "column_name" format.}
+\item{enrollment_date_column}{A column which is where the enrolment date of participants is defined, given in "column_name" format.}
 }
 \value{
 A ggplot of expected and actual recruitment.
 }
 \description{
 This function plots the actual recruitment of a study and the target recruitment against the length of the study.
+}
+\examples{
+Example usage:
+recruitment_plot <- plot_recruitment_overall(dataset, "2023-11-30", 9, 400, "date")
+
+
 }

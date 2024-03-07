@@ -6,7 +6,7 @@
 \usage{
 plot_recruitment_by_site(
   recruitment_start,
-  enrollment_date_data,
+  enrolment_date_data,
   site_data,
   site_names = NULL,
   recruitment_end = Sys.Date()
@@ -15,8 +15,8 @@ plot_recruitment_by_site(
 \arguments{
 \item{recruitment_start}{A date which is the start date of recruitment, given in "2023-01-01" format.}
 
-\item{enrollment_date_data}{The column in the dataset where the enrollment date for each participant is defined, given in
-format "dataset$enrollment_date".}
+\item{enrolment_date_data}{The column in the dataset where the enrolment date for each participant is defined, given in
+format "dataset$enrolment_date".}
 
 \item{site_data}{The column in the dataset where the participant's site is defined, given in format "dataset$site".}
 

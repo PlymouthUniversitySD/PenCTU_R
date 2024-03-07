@@ -12,14 +12,14 @@ get_redcap_audit(api_token, test = FALSE)
 \item{test}{Logical, indicating whether to use the test environment (default is FALSE).}
 }
 \value{
-A dataframe containing the requested data.
+A data frame containing the requested data.
 }
 \description{
 This function retrieves audit log data from REDCap using the REDCap API and an API token.
 }
 \examples{
 :
-Example useage:
+Example usage:
 
 audit_data <- get_redcap_audit("your_api_token", test=TRUE)
 
