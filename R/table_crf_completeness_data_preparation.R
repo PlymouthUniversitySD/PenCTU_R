@@ -86,7 +86,7 @@ table_crf_completeness_data_preparation <- function(dataset, timepoint_name, cat
   crf_complete_columns <- selected_event_data$completeness_column_name
   encode_values_completeness <- function(x) {
     case_when(
-      x == 0 ~ 'Not started',
+      x == 0 ~ 'Incomplete',
       x == 1 ~ 'Unverified',
       x == 2 ~ 'Complete',
       TRUE ~ as.character(x)

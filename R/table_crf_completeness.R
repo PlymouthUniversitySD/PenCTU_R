@@ -54,15 +54,16 @@ table_crf_completeness <- function(dataset, timepoint_name, category, api_token,
   #define the crf list
   crf_names <- names(timepoint_dataset)
   crf_names <- crf_names[-1]
-   
+  
   completeness_table <- timepoint_dataset %>%
     gtsummary::tbl_summary(by = category,
-                type = c(crf_names) ~ "categorical",
-                statistic = all_categorical() ~ "{n} / {N} ({p}%)")%>%
-                italicize_levels() %>%
-                bold_labels() %>%
-                modify_caption(tablename) %>%
-                modify_header(label ~ "**CRF**") %>%
-                as_flex_table()
+                           type = c(crf_names) ~ "categorical",
+                           statistic = all_categorical() ~ "{n} / {N} ({p}%)",
+                           missing='no')%>%
+    italicize_levels() %>%
+    bold_labels() %>%
+    modify_caption(tablename) %>%
+    modify_header(label ~ "**CRF**") %>%
+    as_flex_table()
 }
   
