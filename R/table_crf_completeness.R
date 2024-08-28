@@ -23,7 +23,7 @@
 table_crf_completeness <- function(dataset, timepoint_name, category, api_token, test=FALSE){
   
   #run the data preparation function
-  timepoint_dataset <- table_crf_completeness_data_prep(dataset, timepoint_name, category, api_token, test)
+  timepoint_dataset <- table_crf_completeness_data_preparation(dataset, timepoint_name, category, api_token, test)
   
   #select the correct URL for the test or live database
   if(test){
@@ -51,15 +51,16 @@ table_crf_completeness <- function(dataset, timepoint_name, category, api_token,
   #define the crf list
   crf_names <- names(timepoint_dataset)
   crf_names <- crf_names[-1]
-   
+  
   completeness_table <- timepoint_dataset %>%
     gtsummary::tbl_summary(by = category,
-                type = c(crf_names) ~ "categorical",
-                statistic = all_categorical() ~ "{n} / {N} ({p}%)")%>%
-                italicize_levels() %>%
-                bold_labels() %>%
-                modify_caption(tablename) %>%
-                modify_header(label ~ "**CRF**") %>%
-                as_flex_table()
+                           type = c(crf_names) ~ "categorical",
+                           statistic = all_categorical() ~ "{n} / {N} ({p}%)",
+                           missing='no')%>%
+    italicize_levels() %>%
+    bold_labels() %>%
+    modify_caption(tablename) %>%
+    modify_header(label ~ "**CRF**") %>%
+    as_flex_table()
 }
   
