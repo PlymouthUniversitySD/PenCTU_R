@@ -16,13 +16,13 @@
 #' @importFrom dplyr "%>%"
 #'
 #'@examples
-#' example_dataset<- table_crf_completeness_data_prep(dataset, "facetoface_screeni_arm_1", "Allocation", your_api_token, test=TRUE)
+#' example_dataset<- table_crf_completeness_data_preparation(dataset, "facetoface_screeni_arm_1", "Allocation", your_api_token, test=TRUE)
 
 #' 
 #' @export
 #'
 
-table_crf_completeness_data_prep <- function(dataset, timepoint_name, category, api_token, test=FALSE){
+table_crf_completeness_data_preparation <- function(dataset, timepoint_name, category, api_token, test=FALSE){
   
   #check a correct category option has been selected
   if (!(category %in% c('Allocation', 'Site'))) {

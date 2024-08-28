@@ -7,7 +7,7 @@
 #' This function applies allocations to all rows for a participant
 #'
 #' @param data A REDcap export dataset.
-#' @param data_dictionaryionary A REDcap export data dictionary.
+#' @param data_dictionary A REDcap export data dictionary.
 #' @param allocation_column Column name where allocation data is stored.
 #' @param allocation_event_name Event name where allocations are assigned to participants.
 
@@ -25,7 +25,7 @@
 #'
 
 
-allocation_data_cleaning <- function(data, data_dictionaryionary, allocation_column, allocation_event_name) {
+allocation_data_cleaning <- function(data, data_dictionary, allocation_column, allocation_event_name) {
   
   pdallocation_row <- data_dictionary[data_dictionary$field_name == allocation_column, ]
 
