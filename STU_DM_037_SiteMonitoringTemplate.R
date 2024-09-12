@@ -18,7 +18,11 @@ admin_token <- 'your_admin_module_token'
 
 ##LOAD QUERY DATA
 #\substitute <STUDY NAME> for the name of the study. 
-##Note this file must be downloaded from REDCap each time the script is run. Will need to rename file and then move to the <STUDY NAME>_R folder
+##LOAD QUERY DATA
+##Note this file must be downloaded from REDCap each time the script is run. Will need to 
+##rename file and then move to the <STUDY NAME>_R folder
+##ENSURE THE DOWNLOAD IS OF ALL QUERIES NOT JUST OPEN ONES
+
 queries <- read.csv("<STUDY NAME>_DataResolutionDashboard.csv") 
 
 ##IMPORT DATA
@@ -40,7 +44,7 @@ response <- httr::POST(url, body = formData, encode = "form")
 dataset <- httr::content(response)
 
 ##IMPORT ADMIN MODULE DATA
-formData <- list("token"=token,
+formData <- list("token"=admin_token,
                  content='record',
                  action='export',
                  format='csv',
