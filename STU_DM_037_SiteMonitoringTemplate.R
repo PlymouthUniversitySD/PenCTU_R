@@ -560,7 +560,7 @@ for (column_name in colnames(enrolled)) {
 }
 withdrawal_table <- flextable(proportions)
 site_monitoring <- site_monitoring %>% 
-  body_add_flextable(query_table)
+  body_add_flextable(withdrawal_table)
 
 #NUMBER OF TREATMENT WITHDRAWALS BY SITE
 site_monitoring <- site_monitoring %>%
@@ -601,7 +601,7 @@ for (column_name in colnames(enrolled)) {
 }
 withdrawal_table <- flextable(proportions)
 site_monitoring <- site_monitoring %>% 
-  body_add_flextable(query_table)
+  body_add_flextable(withdrawal_table)
 
 #LOSS TO FOLLOW UPS (PRE TREATMENT) BY SITE
 site_monitoring <- site_monitoring %>%
@@ -642,7 +642,7 @@ for (column_name in colnames(enrolled)) {
 }
 withdrawal_table <- flextable(proportions)
 site_monitoring <- site_monitoring %>% 
-  body_add_flextable(query_table)
+  body_add_flextable(withdrawal_table)
 
 #LOSS TO FOLLOW UPS (POST TREATMENT) BY SITE
 site_monitoring <- site_monitoring %>%
@@ -683,7 +683,7 @@ for (column_name in colnames(enrolled)) {
 }
 withdrawal_table <- flextable(proportions)
 site_monitoring <- site_monitoring %>% 
-  body_add_flextable(query_table)
+  body_add_flextable(withdrawal_table)
 
 #PARTICIPANT DEATHS BY SITE
 site_monitoring <- site_monitoring %>%
@@ -726,7 +726,7 @@ for (column_name in colnames(enrolled)) {
 }
 withdrawal_table <- flextable(proportions)
 site_monitoring <- site_monitoring %>% 
-  body_add_flextable(query_table)
+  body_add_flextable(withdrawal_table)
 
 site_monitoring <- site_monitoring %>%
   body_end_section_landscape()
