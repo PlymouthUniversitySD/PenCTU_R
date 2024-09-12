@@ -1,0 +1,9 @@
+﻿field,timepoint
+horitoplasma,11__postvisit_5_da_arm_1
+horitotumour,11__postvisit_5_da_arm_1
+holopiplasma,11__postvisit_5_da_arm_1
+holopitumour,11__postvisit_5_da_arm_1
+,
+*remove lines 2-9 before using,
+**define the critical data item field name in field,
+**define the timepoint the field occurs in in timepoint,
