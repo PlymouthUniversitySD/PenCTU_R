@@ -36,6 +36,10 @@ formData <- list("token"=token,
 response <- httr::POST(url, body = formData, encode = "form")
 dataset <- httr::content(response)
 
+#remove repeat instances
+#\it may be necessary to remove repeat instances otherwise your critical data items will be noted as misisng for all repeats.
+dataset <- subset(dataset, is.na(redcap_repeat_instance))
+
 #Set today's date
 today <- as.Date(format(Sys.Date(),"%Y-%m-%d"))
 
@@ -134,7 +138,7 @@ for (i in 1:nrow(free_text_fields)) {
   
   timepoint <- free_text_fields$timepoint[i]
   field <- free_text_fields$field[i]
-
+  
   filtered_data <- dataset %>%
     filter(redcap_event_name == timepoint) %>%
     select(record_id, redcap_event_name, !!sym(field))
@@ -142,14 +146,14 @@ for (i in 1:nrow(free_text_fields)) {
   colnames(filtered_data)[3] <- "field_value"
   
   filtered_data <- filtered_data %>%
-    mutate(field_name = field)
-  
+    mutate(field_value = as.character(field_value),
+           field_name = field)
   filtered_data <- filtered_data %>%
     select(record_id, redcap_event_name, field_name, field_value)
-  
   results_list[[i]] <- filtered_data
 }
 
+# Combine all data frames in the results list
 free_text_data <- bind_rows(results_list)
 filename <- paste0(today, "_<STUDY NAME>_free_text_data.csv") #\substitute <STUDY NAME> for the name of the study
 write.csv(free_text_data, filename)
