@@ -9,7 +9,6 @@
 
 #Define API code
 token <- "your_token" #NEVER SAVE YOUR API CODE IN THE SCRIPT
-lab_token <- "your_lab_token"
 
 library(dplyr)
 library(readr)
