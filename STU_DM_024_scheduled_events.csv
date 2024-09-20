@@ -1,0 +1,13 @@
+﻿timepoint_name,date_fieldname,previous_timepoint_name,previous_date_fieldname,offset
+7__visit_3_day_7_arm_1,hoappointdat,5__baseline_arm_1,hoappointdat,9
+9__visit_4_day_14_arm_1,hoappointdat,7__visit_3_day_7_arm_1,hoappointdat,9
+10__visit_5_day_30_arm_1,hoappointdat,9__visit_4_day_14_arm_1,hoappointdat,19
+12__visit_6_day_60_arm_1,hoappointdat,10__visit_5_day_30_arm_1,hoappointdat,35
+,,,,
+,,,,
+*delete lines 2-13 before using,,,,
+**timepoint_name is the name of the timepoint being checked for being overdue,,,,
+**date_fieldname should the the appointment date field ,,,,
+**previous_timepoint_name is the name of the timepoint that the first timepoint is being checked relative to,,,,
+**previous_date_fieldname is the date field for the second appointment,,,,
+**offset is the number of days after the second appointment that the first appointment is due,,,,
