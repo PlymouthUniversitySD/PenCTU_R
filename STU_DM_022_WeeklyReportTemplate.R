@@ -390,8 +390,13 @@ if ('SAE reporting' %in% labelled_dataset$redcap_event_name) { #\replace SAE rep
     body_add_par("No SAEs reported to date.", style="Normal")
 }
 
+#set today's date
+today_date <- Sys.Date()
+today_date <- format(today_date, format = "%d%b%Y")
+today_date <- toupper(today_date)
+
 #define filename
-filename <- paste0(today, "_<STUDY NAME>_WeeklyReport.docx") #\replace <STUDY NAME> with name of study
+filename <- paste0("STU_DM_022_WeeklyReport_", today_date, "_V1.0.docx") #\replace <STU> with study prefix
 
 #Create word doc
 print(weekly_report,target = filename)

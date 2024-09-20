@@ -43,6 +43,11 @@ dataset <- subset(dataset, is.na(redcap_repeat_instance))
 #Set today's date
 today <- as.Date(format(Sys.Date(),"%Y-%m-%d"))
 
+#set today's date
+todays_date <- Sys.Date()
+todays_date <- format(todays_date, format = "%d%b%Y")
+todays_date <- toupper(todays_date)
+
 ###IDENTIFY MISSING CRITICAL DATA ITEMS###
 
 #Load critical data items file
@@ -78,7 +83,7 @@ for (i in 1:nrow(critical_data_items)) {
 missing_critical_data_items <- bind_rows(results_list)
 
 #write results file
-filename <- paste0(today, "_<STUDY NAME>_missing_critical_data_items.csv") #\substitute <STUDY NAME> for the name of the study
+filename <- paste0("STU_DM_023_MissingCriticalDataItems_", todays_date, "_V1.0.docx") #\replace <STU> with study prefix
 write.csv(missing_critical_data_items, filename)
 
 ###IDENTIFY OVERDUE TIMEPOINTS###
@@ -124,7 +129,7 @@ for (i in 1:nrow(scheduled_events)) {
 overdue_timepoints <- bind_rows(results_list)
 
 #write results file
-filename <- paste0(today, "_<STUDY NAME>_overdue_timepoints.csv")  #\substitute <STUDY NAME> for the name of the study
+filename <- paste0("STU_DM_023_OverdueTimepoints_", todays_date, "_V1.0.docx") #\replace <STU> with study prefix
 write.csv(overdue_timepoints, filename)
 
 ###FREE TEXT FIELDS###
@@ -155,5 +160,6 @@ for (i in 1:nrow(free_text_fields)) {
 
 # Combine all data frames in the results list
 free_text_data <- bind_rows(results_list)
-filename <- paste0(today, "_<STUDY NAME>_free_text_data.csv") #\substitute <STUDY NAME> for the name of the study
+
+filename <- paste0("STU_DM_023_FreeTextFields_", todays_date, "_V1.0.docx") #\replace <STU> with study prefix
 write.csv(free_text_data, filename)
