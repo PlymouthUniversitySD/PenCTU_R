@@ -1,0 +1,9 @@
+﻿field,timepoint
+coexcludeft,2__screening_appoi_arm_1
+ieexclusionft,2__screening_appoi_arm_1
+dmgenderft,2__screening_appoi_arm_1
+mhcns1ft,2__screening_appoi_arm_1
+,
+*remove lines 2-9 before using,
+**define the free text field name in field,
+**define the timepoint the field occurs in in timepoint,
