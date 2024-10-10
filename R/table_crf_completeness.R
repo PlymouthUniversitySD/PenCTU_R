@@ -1,5 +1,5 @@
 # Author: Paigan Aspinall
-# Date: 23JAN2024
+# Date: 10OCT2024
 # R version: 4.2.2
 #' Generate a table of CRF completeness at a specified time point.
 #'
@@ -54,6 +54,10 @@ table_crf_completeness <- function(dataset, timepoint_name, category, api_token,
   #define the crf list
   crf_names <- names(timepoint_dataset)
   crf_names <- crf_names[-1]
+  
+  timepoint_dataset <- timepoint_dataset %>%
+    mutate(across(where(is.character), ~ replace_na(., "Not applicable")),
+           across(where(is.factor), ~ fct_explicit_na(., na_level = "Not applicable")))
   
   completeness_table <- timepoint_dataset %>%
     gtsummary::tbl_summary(by = category,
