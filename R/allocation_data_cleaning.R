@@ -28,45 +28,65 @@
 allocation_data_cleaning <- function(data, data_dictionary, allocation_column, allocation_event_name) {
   if(!is.null(data)) {
     if(!is.null(data_dictionary)){
-      pdallocation_row <- data_dictionary[data_dictionary$field_name == allocation_column, ]
-      
-      select_choices <- pdallocation_row$select_choices_or_calculations
-      
-      choices <- unlist(strsplit(select_choices, "\\|"))
-      
-      raw_values <- numeric()
-      level_values <- character()
-      
-      for (choice in choices) {
-        parts <- unlist(strsplit(trimws(choice), ","))
-        if (length(parts) == 2) {
-          raw_values <- c(raw_values, parts[1])
-          level_values <- c(level_values, parts[2])
+      if(is.data.frame(data) && is.data.frame(data_dictionary)) {
+        if(!is.null(allocation_column)){
+          if(allocation_column %in% data_dictionary$field_name) {
+            if(!is.null(allocation_event_name)) {
+              if(allocation_event_name %in% data$redcap_event_name){
+                pdallocation_row <- data_dictionary[data_dictionary$field_name == allocation_column, ]
+                
+                select_choices <- pdallocation_row$select_choices_or_calculations
+                
+                choices <- unlist(strsplit(select_choices, "\\|"))
+                
+                raw_values <- numeric()
+                level_values <- character()
+                
+                for (choice in choices) {
+                  parts <- unlist(strsplit(trimws(choice), ","))
+                  if (length(parts) == 2) {
+                    raw_values <- c(raw_values, parts[1])
+                    level_values <- c(level_values, parts[2])
+                  }
+                }
+                
+                responses_df <- data.frame(raw_value = raw_values, level_value = trimws(level_values))
+                
+                new_row <- data.frame(raw_value = 777, level_value = 'Awaiting randomisation')
+                
+                responses_df <- rbind(responses_df, new_row)
+                
+                allocation_mapping <-  data %>%
+                  filter(redcap_event_name == allocation_event_name) %>%
+                  select(record_id, allocation_column)
+                
+                data <- data %>%
+                  left_join(allocation_mapping, by = "record_id") %>%
+                  mutate(!!allocation_column := ifelse(!is.na(!!sym(paste0(allocation_column, '.y'))), !!sym(paste0(allocation_column, '.y')), !!sym(paste0(allocation_column, '.x')))) %>%
+                  select(-matches(paste0(allocation_column, '.x|', allocation_column, '.y')))
+                
+                data[[allocation_column]][is.na(data[[allocation_column]])] <- 777
+                
+                names(data)[which(names(data)==allocation_column)] <- "Allocation"  
+                
+                data$Allocation <- factor(data$Allocation, levels = responses_df$raw_value, labels = responses_df$level_value)
+                
+                return(data)
+              } else {
+                stop("Value provided for allocation_event_name doesn't match values present in dataset")
+              }
+            } else {
+              stop("Allocation Event Name not specified!")
+            }
+          } else {
+            stop("Allocation Column not present in data dictionary")
+          }
+        } else {
+          stop("No column name provided for allocation column")
         }
+      } else {
+        stop("Files provided are not valid!")
       }
-      
-      responses_df <- data.frame(raw_value = raw_values, level_value = trimws(level_values))
-      
-      new_row <- data.frame(raw_value = 777, level_value = 'Awaiting randomisation')
-      
-      responses_df <- rbind(responses_df, new_row)
-      
-      allocation_mapping <-  data %>%
-        filter(redcap_event_name == allocation_event_name) %>%
-        select(record_id, allocation_column)
-      
-      data <- data %>%
-        left_join(allocation_mapping, by = "record_id") %>%
-        mutate(!!allocation_column := ifelse(!is.na(!!sym(paste0(allocation_column, '.y'))), !!sym(paste0(allocation_column, '.y')), !!sym(paste0(allocation_column, '.x')))) %>%
-        select(-matches(paste0(allocation_column, '.x|', allocation_column, '.y')))
-      
-      data[[allocation_column]][is.na(data[[allocation_column]])] <- 777
-      
-      names(data)[which(names(data)==allocation_column)] <- "Allocation"  
-      
-      data$Allocation <- factor(data$Allocation, levels = responses_df$raw_value, labels = responses_df$level_value)
-      
-      return(data)
     } else {
       stop("Null value provided for data dictionary!")
     }
