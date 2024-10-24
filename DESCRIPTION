@@ -1,7 +1,7 @@
 Package: PenCTU
 Type: Package
 Title: PenCTU Data Management Functions
-Version: 2.1.1
+Version: 2.1.2
 Authors@R: 
     c(person(given = "PenCTU",
              family = "Data",
@@ -10,7 +10,7 @@ Authors@R:
 Description: A set of functions that speed up data management, cleaning and visualisation at PenCTU.
 Encoding: UTF-8
 Depends: 
-  R (<= 4.4.0)
+  R (<= 4.4.2)
 Imports: 
   dplyr (>= 1.1.0),
   tidyr (>= 1.3.0),
