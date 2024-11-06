@@ -164,5 +164,10 @@ entry_table <- set_table_properties(entry_table, width = 0.8, layout = "autofit"
 audit_review <- audit_review %>% 
   body_add_flextable(entry_table)
 
-file_name <- paste0(today, "<SYUDY NAME>_AuditReview.docx") #\replace <STUDY NAME> with your study name.
+#set today's date
+today_date <- Sys.Date()
+today_date <- format(today_date, format = "%d%b%Y")
+today_date <- toupper(today_date)
+
+file_name <- paste0("STU_DM_025_AuditTrailMonitoring_", today_date, "_V1.0.docx") #\replace <STU> with study prefix
 print(audit_review, target=file_name)

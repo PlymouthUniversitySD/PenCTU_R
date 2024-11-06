@@ -731,7 +731,12 @@ site_monitoring <- site_monitoring %>%
 site_monitoring <- site_monitoring %>%
   body_end_section_landscape()
 
-file_name <- paste0(today, "_<STUDY NAME>_SiteMonitoring.docx") #\substitute <STUDY NAME> for the name of the study
+#set today's date
+today_date <- Sys.Date()
+today_date <- format(today_date, format = "%d%b%Y")
+today_date <- toupper(today_date)
+
+file_name <- paste0("STU_DM_037_SiteMonitoring_", today_date, "_V1.0.docx") #\replace <STU> with study prefix
 
 #Create the word doc
 print(site_monitoring, target=file_name)
