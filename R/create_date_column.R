@@ -38,9 +38,9 @@ create_date_column <- function(dataset, year_column, month_column, day_columns, 
     
     dataset_copy <- dataset_copy %>%
       mutate(month = case_when(
-        {{month_column}} == 'Unknown' ~ "January",
-        is.na({{month_column}}) ~ NA_character_,
-        TRUE ~ as.character({{month_column}})
+        !!sym(month_column) == 'Unknown' ~ "January",
+        is.na(!!sym(month_column)) ~ NA_character_,
+        TRUE ~ as.character(!!sym(month_column))
       ))
   } else {
     
