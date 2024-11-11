@@ -439,6 +439,78 @@ site_monitoring <- site_monitoring %>%
   body_add_flextable(screening_table)
 
 #\-----------------------
+#Count of missing data codes used
+
+site_monitoring <- site_monitoring %>%
+  body_add_par("Count of missing data codes per question", style = "heading 2")
+# Define the missing data values
+missingdatavalues <- c("No information", "Unknown", "Not applicable")
+
+
+labelled_dataset_char <- labelled_dataset %>%
+  mutate(across(everything(), as.character))
+
+missing_data_counts <- list()
+
+for (value in missingdatavalues) {
+  counts <- labelled_dataset_char %>%
+    summarise(across(everything(), ~ sum(. == value, na.rm = TRUE))) %>%
+    pivot_longer(cols = everything(), names_to = "Column", values_to = "Occurrences") %>%
+    mutate(Code = value)
+  
+  missing_data_counts[[value]] <- counts
+}
+
+combined_counts <- bind_rows(missing_data_counts)
+
+wide_format <- combined_counts %>%
+  pivot_wider(names_from = Code, values_from = Occurrences, values_fill = list(Occurrences = 0))
+
+missingcount <- wide_format %>%
+  filter(rowSums(select(., -Column)) > 0)
+missingcount_table <- flextable(missingcount)
+
+site_monitoring <- site_monitoring %>% 
+  body_add_flextable(missingcount_table)
+#\-----------------------
+
+#Percentage of participants with a missing code used
+
+site_monitoring <- site_monitoring %>%
+  body_add_par("Missing data code percentages as a proportion of participants", style = "heading 2")
+
+phrase_percentages <- labelled_dataset %>%  summarise(across(    everything(),~ mean(. %in% missingdatavalues, na.rm = TRUE) * 100)) %>%  
+  pivot_longer(cols = everything(),    names_to = "Column",    values_to = "Percentage") %>%  arrange(desc(Percentage))
+
+missingdatavalues <- c("No information", "Unknown", "Not applicable")
+
+labelled_dataset_char <- labelled_dataset %>%
+  mutate(across(everything(), as.character))
+
+missing_data_percentages <- list()
+
+for (value in missingdatavalues) {
+  percentages <- labelled_dataset_char %>%
+    summarise(across(everything(), ~ round(mean(. == value, na.rm = TRUE) * 100, 2))) %>%
+    pivot_longer(cols = everything(), names_to = "Column", values_to = "Percentage") %>%
+    mutate(Code = value)
+  
+  missing_data_percentages[[value]] <- percentages
+}
+
+combined_percentages <- bind_rows(missing_data_percentages)
+
+wide_format_percentages <- combined_percentages %>%
+  pivot_wider(names_from = Code, values_from = Percentage, values_fill = list(Percentage = 0))
+
+percentages <- wide_format_percentages %>%
+  filter(rowSums(select(., -Column)) > 0)
+missingcountpercentage_table <- flextable(percentages)
+
+site_monitoring <- site_monitoring %>% 
+  body_add_flextable(missingcountpercentage_table)
+
+#\-----------------------
 
 #NUMBER OF EVENTS THAT DID NOT TAKE PLACE
 site_monitoring <- site_monitoring %>%
@@ -731,12 +803,7 @@ site_monitoring <- site_monitoring %>%
 site_monitoring <- site_monitoring %>%
   body_end_section_landscape()
 
-#set today's date
-today_date <- Sys.Date()
-today_date <- format(today_date, format = "%d%b%Y")
-today_date <- toupper(today_date)
-
-file_name <- paste0("STU_DM_037_SiteMonitoring_", today_date, "_V1.0.docx") #\replace <STU> with study prefix
+file_name <- paste0(today, "_<STUDY NAME>_SiteMonitoring.docx") #\substitute <STUDY NAME> for the name of the study
 
 #Create the word doc
 print(site_monitoring, target=file_name)

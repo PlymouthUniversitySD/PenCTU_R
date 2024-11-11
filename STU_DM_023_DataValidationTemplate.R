@@ -54,6 +54,8 @@ repeating_date_validation <- date_range_validation_repeating(dataset, STU_DM_023
 #Load numeric validation CSVs
 STU_DM_023_numeric_range_checks <- read.csv('STU_DM_023_numeric_range_checks.csv')
 
+dataset[ , names(dataset) != "redcap_event_name"] <- lapply(dataset[ , names(dataset) != "redcap_event_name"], as.numeric)
+
 #Run numeric validation function
 numeric_validation <- numeric_range_validation(dataset, STU_DM_023_numeric_range_checks)
 
@@ -64,15 +66,13 @@ colnames(standard_date_validation)[colnames(standard_date_validation) == 'error'
 standard_date_validation <- select(standard_date_validation, record_id, field_name, event_name, error_message)
 
 #set today's date
-today_date <- Sys.Date()
-today_date <- format(today_date, format = "%d%b%Y")
-today_date <- toupper(today_date)
+today <- Sys.Date()
 
 #Set file names
-standard_dataset_name <- paste0("STU_DM_023_StandardDateValidation_", today_date, "_V1.0.docx") #\replace <STU> with study prefix
-dynamic_dataset_name <- paste0("STU_DM_023_DynamicDateValidation_", today_date, "_V1.0.docx") #\replace <STU> with study prefix
-repeating_dataset_name <- paste0("STU_DM_022_RepeatingDateValidation_", today_date, "_V1.0.docx") #\replace <STU> with study prefix
-numeric_dataset_name <- paste0("STU_DM_022_NumericValidation_", today_date, "_V1.0.docx") #\replace <STU> with study prefix
+standard_dataset_name <- paste0(today, "_STUDYNAME_StandardDateValidationOutput.csv")
+dynamic_dataset_name <- paste0(today, "_STUDYNAME_DynamicDateValidationOutput.csv")
+repeating_dataset_name <- paste0(today, "_STUDYNAME_RepeatingDateValidationOutput.csv")
+numeric_dataset_name <- paste0(today, "_STUDYNAME_NumericValidationOutput.csv")
 
 #Save the output CSVs
 write.csv(standard_date_validation, file = standard_dataset_name, row.names = FALSE)
