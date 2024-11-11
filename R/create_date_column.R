@@ -30,7 +30,9 @@ create_date_column <- function(dataset, year_column, month_column, day_columns, 
     dataset_copy <- dataset
     
     if(!is.null(day_columns) && !is.null(month_column) && !is.null(year_column)) {
-      if(year_column %in% dataset && month_column %in% dataset && any(day_columns) %in% dataset){
+      if(year_column %in% colnames(dataset) && 
+         month_column %in% colnames(dataset) && 
+         all(day_columns %in% colnames(dataset))) {
         day_values <- rowSums(!is.na(dataset_copy[, day_columns])) > 0
         dataset_copy$day <- NA
         dataset_copy$day[day_values] <- apply(dataset_copy[day_values, day_columns], 1, function(x) x[which.min(is.na(x))])
