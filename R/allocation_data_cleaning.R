@@ -26,16 +26,43 @@
 
 
 allocation_data_cleaning <- function(data, data_dictionary, allocation_column, allocation_event_name) {
+  # Check for null parameters
+  params <- list(data = data, data_dictionary = data_dictionary, 
+                 allocation_column = allocation_column, allocation_event_name = allocation_event_name)
+  
+  null_params <- sapply(params, is.null)
+  
+  if(any(null_params)) {
+    null_param_names <- names(null_params)[null_params]
+    stop(paste("Null values provided for parameters:", paste(null_param_names, collapse = ", ")))
+  }
+  
+  # Check that data and data_dictionary are valid filetypes
+  if(!is.data.frame(data) || !is.data.frame(data_dictionary)) {
+    stop("Files provided are not valid")
+  }
+  
+  # Check that field name provided matches with existing field names in data dictionary
+  if (!allocation_column %in% data_dictionary$field_name) {
+    stop("Value provided for allocation_column doesn't match existing field names in data dictionary")
+  }
+
+  # Check that event name provided matches existing event names in dataset.
+  if(!allocation_event_name %in% data$redcap_event_name){
+    stop("Value provided for allocation_event_name doesn't match existing event names in dataset")
+  }
+  
+  # Function as normal after all checks have been passed
   
   pdallocation_row <- data_dictionary[data_dictionary$field_name == allocation_column, ]
-
+    
   select_choices <- pdallocation_row$select_choices_or_calculations
   
   choices <- unlist(strsplit(select_choices, "\\|"))
-
+  
   raw_values <- numeric()
   level_values <- character()
-
+  
   for (choice in choices) {
     parts <- unlist(strsplit(trimws(choice), ","))
     if (length(parts) == 2) {
@@ -43,7 +70,7 @@ allocation_data_cleaning <- function(data, data_dictionary, allocation_column, a
       level_values <- c(level_values, parts[2])
     }
   }
-
+  
   responses_df <- data.frame(raw_value = raw_values, level_value = trimws(level_values))
   
   new_row <- data.frame(raw_value = 777, level_value = 'Awaiting randomisation')
