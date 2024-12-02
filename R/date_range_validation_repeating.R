@@ -22,40 +22,59 @@
 #'
 
 date_range_validation_repeating <- function(dataset, rules) {
-  #initialize an empty dataframe to store the results
-  output_df <- data.frame(record_id = numeric(),
-                          field_name = character(),
-                          event_name = character(),
-                          error_message = character(),
-                          stringsAsFactors = FALSE)
-  
-  #loop through each rule
-  for (i in seq_len(nrow(rules))) {
-    rule <- rules[i, ]
-    #extract rule parameters
-    field_name <- rule$field_name
-    event_name <- rule$event_name
-    range_check_type <- rule$range_check_type
-    lower_field_name <- rule$lower_field_name
-    upper_field_name <- rule$upper_field_name
-    error_message <- rule$error_message
-    
-    #subset dataset based on the rule and range check type
-    if (range_check_type == "upper") {
-      subset_data <- dataset[dataset$redcap_event_name == event_name & !is.na(dataset[[field_name]]) & !is.na(dataset[[upper_field_name]]) & dataset[[field_name]] > dataset[[upper_field_name]], ]
-    } else if (range_check_type == "lower") {
-      subset_data <- dataset[dataset$redcap_event_name == event_name & !is.na(dataset[[field_name]]) & !is.na(dataset[[lower_field_name]]) & dataset[[field_name]] < dataset[[lower_field_name]], ]
+  if(!is.null(dataset)) {
+    if(!is.null(rules)){
+      #initialize an empty dataframe to store the results
+      output_df <- data.frame(record_id = numeric(),
+                              field_name = character(),
+                              event_name = character(),
+                              error_message = character(),
+                              stringsAsFactors = FALSE)
+      
+      if(
+        "field_name" %in% colnames(rules) && 
+        "event_name" %in% colnames(rules) &&
+        "range_check_type" %in% colnames(rules) &&
+        "lower_field_name" %in% colnames(rules) &&
+        "upper_field_name" %in% colnames(rules) &&
+        "error_message" %in% colnames(rules)
+      ){
+        #loop through each rule
+        for (i in seq_len(nrow(rules))) {
+          rule <- rules[i, ]
+          #extract rule parameters
+          field_name <- rule$field_name
+          event_name <- rule$event_name
+          range_check_type <- rule$range_check_type
+          lower_field_name <- rule$lower_field_name
+          upper_field_name <- rule$upper_field_name
+          error_message <- rule$error_message
+          
+          #subset dataset based on the rule and range check type
+          if (range_check_type == "upper") {
+            subset_data <- dataset[dataset$redcap_event_name == event_name & !is.na(dataset[[field_name]]) & !is.na(dataset[[upper_field_name]]) & dataset[[field_name]] > dataset[[upper_field_name]], ]
+          } else if (range_check_type == "lower") {
+            subset_data <- dataset[dataset$redcap_event_name == event_name & !is.na(dataset[[field_name]]) & !is.na(dataset[[lower_field_name]]) & dataset[[field_name]] < dataset[[lower_field_name]], ]
+          }
+          
+          #append results to the output dataframe
+          if (nrow(subset_data) > 0) {
+            output_df <- rbind(output_df, data.frame(record_id = subset_data$record_id,
+                                                     field_name = field_name,
+                                                     event_name = event_name,
+                                                     error_message = error_message,
+                                                     stringsAsFactors = FALSE))
+          }
+        }
+        
+        return(output_df)
+      } else {
+        stop("Rules CSV file does not have correct columns")
+      }
+    } else {
+      stop("Rules not provided!")
     }
-    
-    #append results to the output dataframe
-    if (nrow(subset_data) > 0) {
-      output_df <- rbind(output_df, data.frame(record_id = subset_data$record_id,
-                                               field_name = field_name,
-                                               event_name = event_name,
-                                               error_message = error_message,
-                                               stringsAsFactors = FALSE))
-    }
+  } else {
+    stop("Dataset not provided!")
   }
-  
-  return(output_df)
 }
