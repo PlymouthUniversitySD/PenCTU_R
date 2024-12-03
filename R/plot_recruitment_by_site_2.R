@@ -27,7 +27,7 @@ library(tidyr) #1.3.0
 #'
 #' @importFrom dplyr "%>%"
 #' 
-#' @example 
+#' @examples
 #' Example usage:
 #' site_names <- c("Plymouth","Manchester") 
 #' site_opening_dates <- c("Plymouth"="2024-09-03", "Manchester"="2025-06-01")

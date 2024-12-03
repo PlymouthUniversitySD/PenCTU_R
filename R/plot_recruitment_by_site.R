@@ -26,7 +26,7 @@ library(tidyr) #1.3.0
 #'
 #' @importFrom dplyr "%>%"
 #' 
-#' @example 
+#' @examples
 #' Example usage:
 #' site_names <- c("Central and North West London", "Cheshire and Wirral Partnership", "Leicestershire Partnership", "Swansea Bay University Health Board", "Cornwall Partnership")
 #' recruitment_by_site <- plot_recruitment_by_site("2023-11-30", dataset$recruitment_date, dataset$Site, site_names, recruitment_end="2024-04-01")
