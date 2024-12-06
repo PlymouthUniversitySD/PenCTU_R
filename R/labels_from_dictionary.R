@@ -19,8 +19,25 @@
 #' @importFrom haven write_dta
 #' @export
 labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_labels_str, var_choices_str = NULL, split_by = ' \\| ', stata_path = NULL) {
+ 
+  if(is.null(data_df)) {
+    stop("Dataset is null!")
+  }
+  
+  if(is.null(dictionary_df)) {
+    stop("Data dictionary is null")
+  }
+  
   stopifnot(is.data.frame(data_df))
   stopifnot(is.data.frame(dictionary_df))
+  
+  if(is.null(var_names_str)) {
+    stop("Name of variable names column not provided!")
+  }
+  
+  if(is.null(var_labels_str)) {
+    stop("Name of labels column not provided!")
+  }
   
   dictionary_df <- dplyr::mutate(dictionary_df, across(everything(), ~ ifelse(. == '', NA, .))) # Ensure blank dictionary items are marked as NA
   
