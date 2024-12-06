@@ -104,8 +104,7 @@ audit_review <- audit_review %>%
   body_add_par("Identification of unauthorised exports", style = "heading 1")
 
 exports <- audit %>%
-  filter(action == "Data export"|action == "Data export (API)"|action == "Manage/Design" & details == "Export Logging (API)"
-         |action == "Manage/Design" & str_starts(details, "Export"))
+  filter(action == "Data export"|action == "Data export (API)")
 
 exportlog <- admin %>%
   filter(redcap_repeat_instrument == "24_Export Log")%>%
