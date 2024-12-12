@@ -67,7 +67,10 @@ labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_la
           (colnames(data_df)[i] != "redcap_repeat_instance") &&
           (colnames(data_df)[i] != "redcap_data_access_group")
       ) {
-        if (colnames(data_df)[i] %in% dictionary_df[[var_names_str]] == TRUE) {
+        if (
+              (colnames(data_df)[i] %in% dictionary_df[[var_names_str]] == TRUE) && 
+              (dictionary_df[[var_names_str]][i] %in% colnames(data_df) == TRUE)
+            ) {
           expss::var_lab(data_df[[var_name]]) <- dictionary_df[[var_labels_str]][i] # Assign variable label
           ##print(data_df[[var_name]])
         } else {
