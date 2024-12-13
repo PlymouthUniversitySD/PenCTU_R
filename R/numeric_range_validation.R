@@ -30,6 +30,17 @@ numeric_range_validation <- function(dataset, rules) {
     stop(".csv file for rules has not been provided!")
   }
   
+  # Define expected column names
+  expected_columns <- c("field_name", "event_name", "range_check_type", 
+                        "lower_value", "upper_value", "error_message")
+  
+  # Check for unexpected columns
+  unexpected_columns <- setdiff(colnames(rules), expected_columns)
+  if (length(unexpected_columns) > 0) {
+    stop(paste("Unexpected columns found in rules CSV file:", 
+               paste(unexpected_columns, collapse = ", ")))
+  }
+  
   # Initialize an empty dataframe to store the results
   output_df <- data.frame(record_id = numeric(),
                           field_name = character(),
