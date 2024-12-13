@@ -22,6 +22,14 @@
 
 
 numeric_range_validation <- function(dataset, rules) {
+  if(is.null(dataset)) {
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(rules)) {
+    stop(".csv file for rules has not been provided!")
+  }
+  
   # Initialize an empty dataframe to store the results
   output_df <- data.frame(record_id = numeric(),
                           field_name = character(),
