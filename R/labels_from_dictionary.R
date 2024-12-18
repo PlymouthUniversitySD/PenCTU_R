@@ -19,8 +19,25 @@
 #' @importFrom haven write_dta
 #' @export
 labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_labels_str, var_choices_str = NULL, split_by = ' \\| ', stata_path = NULL) {
+ 
+  if(is.null(data_df)) {
+    stop("Dataset is null!")
+  }
+  
+  if(is.null(dictionary_df)) {
+    stop("Data dictionary is null")
+  }
+  
   stopifnot(is.data.frame(data_df))
   stopifnot(is.data.frame(dictionary_df))
+  
+  if(is.null(var_names_str)) {
+    stop("Name of variable names column not provided!")
+  }
+  
+  if(is.null(var_labels_str)) {
+    stop("Name of labels column not provided!")
+  }
   
   dictionary_df <- dplyr::mutate(dictionary_df, across(everything(), ~ ifelse(. == '', NA, .))) # Ensure blank dictionary items are marked as NA
   
@@ -29,22 +46,38 @@ labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_la
     
     if (!is.null(data_df[[var_name]])) {
       if (!is.null(var_choices_str) && !is.na(dictionary_df[[var_choices_str]][i])) {
-        value <- stringr::str_remove_all(dictionary_df[[var_choices_str]][i], '\"') %>% 
-          stringr::str_remove_all('\"') %>% 
-          stringr::str_split_1(split_by) %>% 
-          stringr::str_trim() %>% 
-          stringr::str_split(", ", n = 2)
         
-        levels <- sapply(value, `[[`, 1)
-        labels <- sapply(value, `[[`, 2)
-        
-        data_df[[var_name]] <- factor(data_df[[var_name]], levels = levels, labels = labels)
+          value <- stringr::str_remove_all(dictionary_df[[var_choices_str]][i], '\"') %>% 
+            stringr::str_remove_all('\"') %>% 
+            stringr::str_split_1(split_by) %>% 
+            stringr::str_trim() %>% 
+            stringr::str_split(", ", n = 2)
+          
+          levels <- sapply(value, `[[`, 1)
+          labels <- sapply(value, `[[`, 2)
+          
+          data_df[[var_name]] <- factor(data_df[[var_name]], levels = levels, labels = labels)
       }
       
       data_df[data_df == "NULL"] <- NA
-      
-      expss::var_lab(data_df[[var_name]]) <- dictionary_df[[var_labels_str]][i] # Assign variable label
-      
+      print(colnames(data_df)[i])
+      if(
+          (colnames(data_df)[i] != "redcap_event_name") && 
+          (colnames(data_df)[i] != "redcap_repeat_instrument") &&
+          (colnames(data_df)[i] != "redcap_repeat_instance") &&
+          (colnames(data_df)[i] != "redcap_data_access_group")
+      ) {
+        if (
+              (colnames(data_df)[i] %in% dictionary_df[[var_names_str]] == TRUE) && 
+              (dictionary_df[[var_names_str]][i] %in% colnames(data_df) == TRUE)
+            ) {
+          expss::var_lab(data_df[[var_name]]) <- dictionary_df[[var_labels_str]][i] # Assign variable label
+          ##print(data_df[[var_name]])
+        } else {
+          stop(paste0(colnames(data_df)[i], " is not present in data dictionary!"))
+        }
+      }
+
       if (!is.null(stata_path)) {
         haven::write_dta(data_df, stata_path)
       }
@@ -52,4 +85,5 @@ labels_from_dictionary <- function(data_df, dictionary_df, var_names_str, var_la
   }
   
   return(data_df)
+  
 }
