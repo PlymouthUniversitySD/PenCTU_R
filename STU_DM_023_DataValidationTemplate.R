@@ -44,7 +44,7 @@ library(tidyr)
 #Load date validation CSVs
 STU_DM_023_date_range_checks_standard <- read.csv('STU_DM_023_date_range_checks_standard.csv')
 STU_DM_023_date_range_checks_dynamic <- read.csv('STU_DM_023_date_range_checks_dynamic.csv')
-STU_DM_023_date_range_checks_repeating <- read.csv('STU_DM_023_date_range_checks_repeating.csv')
+STU_DM_023_date_range_checks_repeating <- read.csv('STU_DM_023_date_range_validation_repeating.csv')
 
 #Run date validation functions
 standard_date_validation <- date_range_validation_standard(dataset, STU_DM_023_date_range_checks_standard)
