@@ -54,26 +54,26 @@ date_range_validation_repeating <- function(dataset, rules) {
           
           #subset dataset based on the rule and range check type
           if (range_check_type == "upper") {
-            invalid_rows <- which(!is.na(dataset[[upper_field_name]]) & is.na(dmy(dataset[[upper_field_name]])) & dataset$redcap_event_name == event_name)
+            suppressWarnings(invalid_rows <- which(!is.na(dataset[[upper_field_name]]) & is.na(dmy(dataset[[upper_field_name]])) & dataset$redcap_event_name == event_name))
             if (length(invalid_rows) == 0) {
               subset_data <- dataset[dataset$redcap_event_name == event_name & 
                                        !is.na(dataset[[field_name]]) & 
                                        !is.na(dataset[[upper_field_name]]) & 
                                        dataset[[field_name]] > dataset[[upper_field_name]], ]
             } else {
-              stop(paste0("Invalid date format in column ", upper_field_name, " (Expected dd/mm/yyyy): Upper. Problematic rows: ", 
-                          paste(invalid_rows, collapse = ", ")))
+              stop(paste0("Invalid date format (expected dd/mm/yyyy) in rows: ", 
+                          paste(invalid_rows, collapse = ", "), "; column: ",  upper_field_name, "; Range check type : Upper."))
             }
           } else if (range_check_type == "lower") {
-            invalid_rows <- which(!is.na(dataset[[lower_field_name]]) & is.na(dmy(dataset[[lower_field_name]] )) & dataset$redcap_event_name == event_name)
+            suppressWarnings(invalid_rows <- which(!is.na(dataset[[lower_field_name]]) & is.na(dmy(dataset[[lower_field_name]])) & dataset$redcap_event_name == event_name))
             if (length(invalid_rows) == 0) {
               subset_data <- dataset[dataset$redcap_event_name == event_name & 
                                        !is.na(dataset[[field_name]]) & 
                                        !is.na(dataset[[lower_field_name]]) & 
                                        dataset[[field_name]] > dataset[[lower_field_name]], ]
             } else {
-              stop(paste0("Invalid date format in column ", lower_field_name, " (Expected dd/mm/yyyy): Lower. Problematic rows: ", 
-                          paste(invalid_rows, collapse = ", ")))
+              stop(paste0("Invalid date format (expected dd/mm/yyyy) in rows: ", 
+                          paste(invalid_rows, collapse = ", "), "; column: ",  lower_field_name, "; Range check type : Lower."))
             }
           }
           
