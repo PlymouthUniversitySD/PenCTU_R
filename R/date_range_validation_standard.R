@@ -20,7 +20,30 @@
 #' @export
 #'
 
+library(lubridate)
+
 date_range_validation_standard <- function(dataset, rules) {
+  if(is.null(dataset)){
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(rules)){
+    stop("Rules CSV file not provided!")
+  }
+  
+  if("field_name" %in% colnames(rules) == FALSE ||
+     "event_name" %in% colnames(rules) == FALSE||
+     "range_check_type" %in% colnames(rules) == FALSE ||
+     "lower_field_name" %in% colnames(rules) == FALSE ||
+     "lower_event_name" %in% colnames(rules) == FALSE ||
+     "lower_set_date" %in% colnames(rules) == FALSE ||
+     "upper_field_name" %in% colnames(rules) == FALSE ||
+     "upper_event_name" %in% colnames(rules) == FALSE ||
+     "upper_set_date" %in% colnames(rules) == FALSE ||
+     "error_message" %in% colnames(rules) == FALSE
+  ) {
+    stop("Rules CSV file doesn't have correct columns!")
+  }
   
   #set today's date
   today_date <- as.character(Sys.Date())
