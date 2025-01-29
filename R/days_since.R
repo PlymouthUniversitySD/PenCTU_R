@@ -17,12 +17,12 @@
 #'
 
 days_since <- function(dataset, date_column, start_date) {
-  # Ensure the date_column is in Date format
+  # Ensure both columns are in Date format
   dataset[[date_column]] <- as.Date(dataset[[date_column]])
   dataset[[start_date]] <- as.Date(dataset[[start_date]])
   
-  # Calculate the days since the given date
-  dataset[[date_column]] <- as.numeric(dataset[[date_column]],dataset[[start_date]], units = "days")
+  # Calculate the days since the start_date
+  dataset[[date_column]] <- as.numeric(dataset[[date_column]] - dataset[[start_date]], units = "days")
   
   return(dataset)
 }
