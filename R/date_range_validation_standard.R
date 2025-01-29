@@ -20,7 +20,30 @@
 #' @export
 #'
 
+library(lubridate)
+
 date_range_validation_standard <- function(dataset, rules) {
+  if(is.null(dataset)){
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(rules)){
+    stop("Rules CSV file not provided!")
+  }
+  
+  if("field_name" %in% colnames(rules) == FALSE ||
+     "event_name" %in% colnames(rules) == FALSE||
+     "range_check_type" %in% colnames(rules) == FALSE ||
+     "lower_field_name" %in% colnames(rules) == FALSE ||
+     "lower_event_name" %in% colnames(rules) == FALSE ||
+     "lower_set_date" %in% colnames(rules) == FALSE ||
+     "upper_field_name" %in% colnames(rules) == FALSE ||
+     "upper_event_name" %in% colnames(rules) == FALSE ||
+     "upper_set_date" %in% colnames(rules) == FALSE ||
+     "error_message" %in% colnames(rules) == FALSE
+  ) {
+    stop("Rules CSV file doesn't have correct columns!")
+  }
   
   #set today's date
   today_date <- as.character(Sys.Date())
@@ -53,6 +76,40 @@ date_range_validation_standard <- function(dataset, rules) {
                redcap_event_name == event_name & !is.na(get(field_name)))
     #apply date range checks based on 'range_check_type'
     if (range_check_type == "between_set_lower") {
+      
+      invalid_rows <- which(is.na(as.Date(filtered_data[[field_name]], format = "%d/%m/%Y")) & (filtered_data[[field_name]] != ""))
+      null_rows <- which(filtered_data[[field_name]] == "")
+      
+      if (length(invalid_rows) > 0 || length(null_rows) > 0) {
+        # Create a placeholder for messages
+        error_messages <- c()
+        
+        # Handle invalid rows (not a valid date)
+        if (length(invalid_rows) > 0) {
+          invalid_details <- filtered_data[invalid_rows, c("record_id", "redcap_event_name", field_name)]
+          invalid_messages <- apply(invalid_details, 1, function(row) {
+            paste0("Record ID: ", row["record_id"],
+                   ", Event: ", row["redcap_event_name"],
+                   ", Invalid Date Value: ", row[field_name])
+          })
+          error_messages <- c(error_messages, invalid_messages)
+        }
+        
+        # Handle null rows (empty values)
+        if (length(null_rows) > 0) {
+          null_details <- filtered_data[null_rows, c("record_id", "redcap_event_name", field_name)]
+          null_messages <- apply(null_details, 1, function(row) {
+            paste0("Record ID: ", row["record_id"],
+                   ", Event: ", row["redcap_event_name"],
+                   ", Missing Date Value")
+          })
+          error_messages <- c(error_messages, null_messages)
+        }
+        
+        # Combine and throw an error
+        stop(paste0("'between_set_lower': Date format issues detected:\n", paste(error_messages, collapse = "\n")))
+      }
+      
       subset_data <- filtered_data %>%
         filter(get(field_name) < lower_set_date)
       if (nrow(subset_data) > 0) {
@@ -64,8 +121,43 @@ date_range_validation_standard <- function(dataset, rules) {
       }
       
     } else if (range_check_type == "between_set_upper") {
+      invalid_rows <- which(is.na(as.Date(filtered_data[[field_name]], format = "%d/%m/%Y")) & (filtered_data[[field_name]] != ""))
+      null_rows <- which(filtered_data[[field_name]] == "")
+      
+      if (length(invalid_rows) > 0 || length(null_rows) > 0) {
+        # Create a placeholder for messages
+        error_messages <- c()
+        
+        # Handle invalid rows (not a valid date)
+        if (length(invalid_rows) > 0) {
+          invalid_details <- filtered_data[invalid_rows, c("record_id", "redcap_event_name", field_name)]
+          invalid_messages <- apply(invalid_details, 1, function(row) {
+            paste0("Record ID: ", row["record_id"],
+                   ", Event: ", row["redcap_event_name"],
+                   ", Invalid Date Value: ", row[field_name])
+          })
+          error_messages <- c(error_messages, invalid_messages)
+        }
+        
+        # Handle null rows (empty values)
+        if (length(null_rows) > 0) {
+          null_details <- filtered_data[null_rows, c("record_id", "redcap_event_name", field_name)]
+          null_messages <- apply(null_details, 1, function(row) {
+            paste0("Record ID: ", row["record_id"],
+                   ", Event: ", row["redcap_event_name"],
+                   ", Missing Date Value")
+          })
+          error_messages <- c(error_messages, null_messages)
+        }
+        
+        # Combine and throw an error
+        stop(paste0("'between_set_upper': Date format issues detected:\n", paste(error_messages, collapse = "\n")))
+      }
+      
+      
       subset_data <- filtered_data %>%
         filter(get(field_name) > upper_set_date)
+      
       if (nrow(subset_data) > 0) {
         subset_data$error <- error_message
         #add error_message, field_name, and event_name to the subset_data
@@ -78,6 +170,40 @@ date_range_validation_standard <- function(dataset, rules) {
       #create a new filtered dataset where redcap_event_name == lower_event_name
       lower_event_data <- dataset %>%
         filter(redcap_event_name == lower_event_name)
+      
+      invalid_rows <- which(is.na(as.Date(lower_event_data[[field_name]], format = "%d/%m/%Y")) & (lower_event_data[[field_name]] != ""))
+      null_rows <- which(lower_event_data[[field_name]] == "")
+      
+      if (length(invalid_rows) > 0 || length(null_rows) > 0) {
+        # Create a placeholder for messages
+        error_messages <- c()
+        
+        # Handle invalid rows (not a valid date)
+        if (length(invalid_rows) > 0) {
+          invalid_details <- lower_event_data[invalid_rows, c("record_id", "redcap_event_name", field_name)]
+          invalid_messages <- apply(invalid_details, 1, function(row) {
+            paste0("Record ID: ", row["record_id"], 
+                   ", Event: ", row["redcap_event_name"], 
+                   ", Invalid Date Value: ", row[field_name])
+          })
+          error_messages <- c(error_messages, invalid_messages)
+        }
+        
+        # Handle null rows (empty values)
+        if (length(null_rows) > 0) {
+          null_details <- lower_event_data[null_rows, c("record_id", "redcap_event_name", field_name)]
+          null_messages <- apply(null_details, 1, function(row) {
+            paste0("Record ID: ", row["record_id"], 
+                   ", Event: ", row["redcap_event_name"], 
+                   ", Missing Date Value")
+          })
+          error_messages <- c(error_messages, null_messages)
+        }
+        
+        # Combine and throw an error
+        stop(paste0("'between_variable_lower': Date format issues detected:\n", paste(error_messages, collapse = "\n")))
+      }
+      
       #merge the data from filtered_data and lower_event_data by record_id
       merged_data <- merge(filtered_data, lower_event_data, by = "record_id", all.x = TRUE)
       #filter the data to only keep rows where Field < lower_field_name
@@ -97,6 +223,40 @@ date_range_validation_standard <- function(dataset, rules) {
       #create a new filtered dataset where redcap_event_name == lower_event_name
       upper_event_data <- dataset %>%
         filter(redcap_event_name == upper_event_name)
+      
+      invalid_rows <- which(is.na(as.Date(upper_event_data[[field_name]], format = "%d/%m/%Y")) & (upper_event_data[[field_name]] != ""))
+      null_rows <- which(upper_event_data[[field_name]] == "")
+      
+      if (length(invalid_rows) > 0 || length(null_rows) > 0) {
+        # Create a placeholder for messages
+        error_messages <- c()
+        
+        # Handle invalid rows (not a valid date)
+        if (length(invalid_rows) > 0) {
+          invalid_details <- upper_event_data[invalid_rows, c("record_id", "redcap_event_name", field_name)]
+          invalid_messages <- apply(invalid_details, 1, function(row) {
+            paste0("Record ID: ", row["record_id"], 
+                   ", Event: ", row["redcap_event_name"], 
+                   ", Invalid Date Value: ", row[field_name])
+          })
+          error_messages <- c(error_messages, invalid_messages)
+        }
+        
+        # Handle null rows (empty values)
+        if (length(null_rows) > 0) {
+          null_details <- upper_event_data[null_rows, c("record_id", "redcap_event_name", field_name)]
+          null_messages <- apply(null_details, 1, function(row) {
+            paste0("Record ID: ", row["record_id"], 
+                   ", Event: ", row["redcap_event_name"], 
+                   ", Missing Date Value")
+          })
+          error_messages <- c(error_messages, null_messages)
+        }
+        
+        # Combine and throw an error
+        stop(paste0("'between_variable_upper': Date format issues detected:\n", paste(error_messages, collapse = "\n")))
+      }
+      
       #merge the data from filtered_data and lower_event_data by record_id
       merged_data <- merge(filtered_data, upper_event_data, by = "record_id", all.x = TRUE)
       #filter the data to only keep rows where Field < lower_field_name
