@@ -36,3 +36,10 @@ A ggplot of recruitment at each site.
 This function plots the recruitment at each site against the month and year; the sites can be defined or pulled from the data
 the dates can be up to today or up until the end of recruitment.
 }
+\examples{
+Example usage:
+site_names <- c("Plymouth","Manchester") 
+site_opening_dates <- c("Plymouth"="2024-09-03", "Manchester"="2025-06-01")
+recruitment_by_site <- plot_recruitment_by_site("2024-09-03", site_opening_dates, dataset$recruitment_date, dataset$Site, site_names, recruitment_end="2024-04-01")
+
+}
