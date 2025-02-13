@@ -36,12 +36,35 @@ library(tidyr) #1.3.0
 #' @export
 #' 
 plot_recruitment_by_site_2 <- function(recruitment_start, site_opening_dates, enrolment_date_data, site_data, site_names=NULL, recruitment_end=Sys.Date()){
+  if(is.null(recruitment_start)) {
+    stop("Start date of recruitment not provided!")
+  }
+  
+  if(is.null(site_opening_dates)) {
+    stop("Site opening dates not provided!")
+  }
+  
+  if(is.null(enrolment_date_data)) {
+    stop("Enrolment date data not provided!")
+  }
+  
+  if(is.null(site_data)) {
+    stop("Site data not provided!")
+  }
   
   # Convert parameters to appropriate date formats
   recruitment_start <- as.Date(recruitment_start)
   recruitment_end <- as.Date(recruitment_end)
   enrolment_date_data <- as.Date(enrolment_date_data)
   today_date <- format(Sys.Date(), "%Y-%m-%d")
+  
+  if(!grepl("^\\d{4}-\\d{2}-\\d{2}$", as.Date(recruitment_start, format="%Y-%m-%d"))) {
+    stop("Recruitment start date was given in incorrect format")
+  }
+  
+  if(!is.null(recruitment_end) && !grepl("^\\d{4}-\\d{2}-\\d{2}$", as.Date(recruitment_end, format="%Y-%m-%d"))) {
+    stop("Recruitment end date was given in incorrect format")
+  }
   
   # Initialize an empty dataframe to store plot data
   plot_data <- data.frame()
@@ -66,6 +89,10 @@ plot_recruitment_by_site_2 <- function(recruitment_start, site_opening_dates, en
     # Filter enrolment data for the current site
     month_count_site <- enrolment_data %>%
       filter(site_data == site_name)
+    
+    if(!(site_name %in% month_count_site$site_data)) {
+      stop(paste0(site_name, " not found in site data!"))
+    }
     
     # Ensure recruitment_start is a Date object and generate the date sequence
     date_sequence <- seq(as.Date(format(recruitment_start, "%Y-%m-01")), 
@@ -108,11 +135,11 @@ plot_recruitment_by_site_2 <- function(recruitment_start, site_opening_dates, en
   }
   
   plot_data$year_month <- format(plot_data$year_month, "%Y-%m")
-
+  
   
   # Define custom colors for sites
   custom_colors <- c("#F8766D", "#00BFC4", "#CD9600", "#C77CFF","#7CAE00","#FB61D7","#619CFF","#00BA38","#A3A500")
-
+  
   plot_data$year_month <- as.Date(paste0(plot_data$year_month, "-01"))
   
   # Create the plot
@@ -148,4 +175,3 @@ plot_recruitment_by_site_2 <- function(recruitment_start, site_opening_dates, en
     )
   
 }
-
