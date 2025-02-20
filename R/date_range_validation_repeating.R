@@ -19,10 +19,6 @@
 #' date_validation_output <- date_range_validation_repeating(dataset, rules)
 #'
 #' @export
-#'
-
-library(lubridate)
-
 date_range_validation_repeating <- function(dataset, rules) {
   if(!is.null(dataset)) {
     if(!is.null(rules)){
