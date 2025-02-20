@@ -11,7 +11,7 @@ date_range_validation_dynamic(dataset, rules)
 \arguments{
 \item{dataset}{A complete dataset.}
 
-\item{rules}{A CSV file that is imported and contains all of the date range checks to be performed. Use template DateValidationTemplate_dynamic_V1.0}
+\item{rules}{A CSV file that is imported and contains all of the date range checks to be performed. Use template STU_DM_023_DateValidationTemplate_dynamic.R}
 }
 \value{
 A dataset summarising potentially invalid date data.

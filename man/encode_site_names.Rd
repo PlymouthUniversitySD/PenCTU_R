@@ -21,7 +21,7 @@ This function retrieves DAG data from REDcap and adds a Site column to the datas
 }
 \details{
 This function sends an HTTP POST request to the REDCap API to retrieve data.
-It will then add items from this REDcao data to the specified dataset.
+It will then add items from this REDcap data to the specified dataset.
 }
 \examples{
 # Example usage:
