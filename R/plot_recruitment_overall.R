@@ -5,6 +5,7 @@
 library(dplyr) #1.1.0
 library(ggplot2) #3.4.2
 library(tidyr) #1.3.0
+library(lubridate)
 
 #' Generate an actual versus target recruitment plot.
 #'
@@ -31,6 +32,38 @@ library(tidyr) #1.3.0
 
 plot_recruitment_overall <- function(data, recruitment_start, recruitment_length_months, recruitment_target, enrollment_date_column) {
   
+  if(is.null(data)) {
+    stop("Value not provided for data!")
+  }
+  
+  if(is.null(recruitment_start)) {
+    stop("Value not provided for recruitment_start_date!")
+  }
+  
+  if(is.null(recruitment_length_months)) {
+    stop("Value not provided for recruitment_length_months")
+  }
+  
+  if(is.null(recruitment_target)) {
+    stop("Value not provided for recruitment_target")
+  }
+  
+  if(is.null(enrollment_date_column)) {
+    stop("Value not provided for enrollment_date_column")
+  }
+  
+  if(!is.Date(as.Date(recruitment_start))) {
+    stop("Invalid date provided for recruitment_start")
+  }
+  
+  if(is.numeric(recruitment_length_months) == FALSE) {
+    stop("Invalid value provided for recruitment_length_months")
+  }
+  
+  if(is.numeric(recruitment_target) == FALSE) {
+    stop("Invalid value provided for recruitment_target")
+  }
+  
   # Get today's date
   today_date <- as.Date(format(Sys.Date(), "%Y-%m-%d"))
   
@@ -39,6 +72,11 @@ plot_recruitment_overall <- function(data, recruitment_start, recruitment_length
   recruitment_start <- as.Date(recruitment_start)
   # Calculate the end date of recruitment
   recruitment_end <- recruitment_start + months(recruitment_length_months)
+  
+  if(any(!grepl("^\\d{4}-\\d{2}-\\d{2}$", as.Date(data[[enrollment_date_column]])))) {
+    stop("Enrollment dates retrieved from dataset have been incorrectly formatted!")
+  }
+  
   
   # Prepare enrolment data
   enrollment_data <- data %>% 
@@ -51,12 +89,16 @@ plot_recruitment_overall <- function(data, recruitment_start, recruitment_length
     # Arrange by date
     arrange(as.Date(paste0(year_month, "-01")))
   
+  test_date = as.Date("2025-04-18", format="%Y-%m-%d")
+  
   # Generate a sequence of year-months from recruitment start
   year_months <- seq(from = floor_date(recruitment_start, unit = "month"), 
-                     to = floor_date(today_date, unit = "month"), by = "1 month")
+                     to = floor_date(test_date, unit = "month"), by = "1 month")
   year_months <- format(year_months, "%Y-%m")
+  
   # Create a dataframe with all year-months
   all_months_data <- data.frame(year_month = year_months)
+  
   # Left join enrollment data with all months data
   enrollment_data <- all_months_data %>%
     left_join(enrollment_data, by = "year_month") %>%
