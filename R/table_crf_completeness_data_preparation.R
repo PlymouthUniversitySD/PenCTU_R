@@ -32,28 +32,48 @@ table_crf_completeness_data_preparation <- function(dataset, timepoint_name, cat
     stop("category must be 'Allocation' or 'Site'")
   }
   
+  if(is.null(category)) {
+    stop("Category not provided!")
+  }
+  
+  if(is.null(dataset)) {
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(timepoint_name)) {
+    stop("Timepoint Name not proivded!")
+  }
+  
+  if(!(timepoint_name %in% dataset$redcap_event_name)) {
+    stop("Timepoint name doesn't exist!")
+  }
+  
+  if(is.null(api_token)) {
+    stop("API token not provided!")
+  }
+  
   #select the correct URL for the test or live database
   if(test){
     url <- "https://clinicaltrials-pre.plymouth.ac.uk/api/"
   } else{
     url <- "https://clinicaltrials.plymouth.ac.uk/api/"
   }
-
+  
   #load the instrument data
-  formData <- list("token"=token,
-                  content='instrument',
-                  format='csv',
-                  returnFormat='csv'
+  formData <- list("token"=api_token,
+                   content='instrument',
+                   format='csv',
+                   returnFormat='csv'
   )
   response <- httr::POST(url, body = formData, encode = "form")
   crf_data <- httr::content(response)
-
+  
   #load the instrument-event mapping data
-  formData <- list("token"=token,
-                  content='formEventMapping',
-                  format='csv',
-                  'arms[0]'='1',
-                  returnFormat='csv'
+  formData <- list("token"=api_token,
+                   content='formEventMapping',
+                   format='csv',
+                   'arms[0]'='1',
+                   returnFormat='csv'
   )
   response <- httr::POST(url, body = formData, encode = "form")
   event_instrument_mapping <- httr::content(response)
@@ -69,14 +89,22 @@ table_crf_completeness_data_preparation <- function(dataset, timepoint_name, cat
   #select only rows where the event name is that which is defined 
   selected_event_data <- subset(all_event_data, unique_event_name == timepoint_name)
   table_dataset <- subset(dataset, redcap_event_name == timepoint_name)
-
+  
   #subset the dataset so that only the record_id, category and required completeness columns are present
   if(category == "Allocation"){
-  selected_columns <- c("Allocation", selected_event_data$completeness_column_name)
-  table_dataset <- table_dataset %>%
-    select(all_of(selected_columns))  
+    if(!("Allocation" %in% colnames(dataset))) {
+      stop("Allocation column not present!")
+    }
+    
+    selected_columns <- c("Allocation", selected_event_data$completeness_column_name)
+    table_dataset <- table_dataset %>%
+      select(all_of(selected_columns))  
   }
   if(category == "Site"){
+    if(!("Site" %in% colnames(dataset))) {
+      stop("Site column not present!")
+    }
+    
     selected_columns <- c("Site", selected_event_data$completeness_column_name)
     table_dataset <- table_dataset %>%
       select(all_of(selected_columns))  
@@ -94,7 +122,7 @@ table_crf_completeness_data_preparation <- function(dataset, timepoint_name, cat
   }
   table_dataset <- table_dataset %>%
     mutate_at(vars(crf_complete_columns), ~encode_values_completeness(.))
-
+  
   #Encode CRF names
   column_name_mapping <- selected_event_data %>%
     select(completeness_column_name, instrument_label)
@@ -105,7 +133,3 @@ table_crf_completeness_data_preparation <- function(dataset, timepoint_name, cat
   #Return the dataset
   return(table_dataset)
 }
-
-
-
-

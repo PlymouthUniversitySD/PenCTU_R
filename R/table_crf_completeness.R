@@ -36,7 +36,7 @@ table_crf_completeness <- function(dataset, timepoint_name, category, api_token,
   }
   
   #load event data from API
-  formData <- list("token"=token,
+  formData <- list("token"=api_token,
                    content='event',
                    format='csv',
                    returnFormat='csv'
