@@ -8,6 +8,7 @@
 #' @param dataset The dataset where the demographics data is being pulled from.
 #' @param demographic_columns A vector of desired columns to be presented in the demographics table, separated by a comma.
 #' @param demographics_event The name of the event in which demographics data is collected and where the demographic_columns are located.
+#' @param category_column The name of the column that we organise the final dataset by
 #' @param dob_column The name of the date of birth column. NULL by default.
 #' @param anchor_column The column location of the date from which age will be calculated (e.g. age at registration). NULL by default.
 #' @param anchor_event The name of the event where the anchor_column is collected. NULL by default.
@@ -27,7 +28,7 @@
 #' demographic_columns <- c("dmsexatbirth", "dmethnic", "dmemployment", "dmlivewith", "dmmarital", "dmindependence")
 #'
 #' demographics_table_data <- table_demographics_data_preparation(dataset, demographic_columns, "facetoface_screeni_arm_1",
-#'                                                                    "dmyob", "pdregisterdat", "participant_identi_arm_1")
+#'                                                                    "dmyob", "pdregisterdat", "participant_identi_arm_1", "Allocation")
 #' #example downstream usage:
 #' baseline_characteristics <-  demographics_table_data %>% 
 #' tbl_summary(by = category,
@@ -48,8 +49,13 @@
 #' @export
 #' 
 
-table_demographics_data_preparation <- function(dataset, demographic_columns, demographics_event,
+table_demographics_data_preparation <- function(dataset, demographic_columns, demographics_event, category_column,
                                                 dob_column = NULL, anchor_column = NULL, anchor_event = NULL) {
+  
+  #check a correct category option has been selected
+  if (!(category_column %in% c('Allocation', 'Site'))) {
+    stop("category must be 'Allocation' or 'Site'")
+  }
   
   #if age is being calculated from DOB/registration date
   if(!is.na(dob_column) & !is.na(anchor_column)){ 
@@ -75,7 +81,7 @@ table_demographics_data_preparation <- function(dataset, demographic_columns, de
     #merge the Age column with the rest of the data
     result <- select(result, record_id, Age)
     merged_dataset <- merge(dataset, result, by = "record_id", all.x=TRUE)
-
+    
     #define the demographics fields to be selected for the demographics dataset
     demographic_columns <- c("Age", demographic_columns)
   }
@@ -83,9 +89,9 @@ table_demographics_data_preparation <- function(dataset, demographic_columns, de
   #create a dataset of only the demographics event with only the desired demographics columns
   merged_dataset <- subset(merged_dataset, redcap_event_name == demographics_event)
   merged_dataset <- select(merged_dataset, category_column, demographic_columns)
-
+  
   return(merged_dataset)
 }
-  
+
 
 
