@@ -53,8 +53,28 @@ table_demographics_data_preparation <- function(dataset, demographic_columns, de
                                                 dob_column = NULL, anchor_column = NULL, anchor_event = NULL) {
   
   #check a correct category option has been selected
-  if (!(category_column %in% c('Allocation', 'Site'))) {
+  if (!(is.null(category_column)) && !(category_column %in% c('Allocation', 'Site'))) {
     stop("category must be 'Allocation' or 'Site'")
+  }
+  
+  if(!any(demographic_columns) %in% colnames(dataset)) {
+    stop("Column found in demographics_columns that isn't present in dataset")
+  }
+  
+  if(is.null(category_column)) {
+    stop("Category column not provided!")
+  }
+  
+  if(is.null(dataset)) {
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(demographic_columns)) {
+    stop("Demographic columns not provided!")
+  }
+  
+  if(is.null(demographics_event)) {
+    stop("Demographics event not provided!")
   }
   
   #if age is being calculated from DOB/registration date
