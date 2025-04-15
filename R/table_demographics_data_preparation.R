@@ -27,8 +27,8 @@
 #' 
 #' demographic_columns <- c("dmsexatbirth", "dmethnic", "dmemployment", "dmlivewith", "dmmarital", "dmindependence")
 #'
-#' demographics_table_data <- table_demographics_data_preparation(dataset, demographic_columns, "facetoface_screeni_arm_1",
-#'                                                                    "dmyob", "pdregisterdat", "participant_identi_arm_1", "Allocation")
+#' demographics_data <- table_demographics_data_preparation(demo_dataset, demographics_columns,'Face-to-face screening', ‘Allocation’, dob_column = 'dmyob',
+#'                                                          anchor_column = 'pdregisterdat', anchor_event = 'Participant identification')
 #' #example downstream usage:
 #' baseline_characteristics <-  demographics_table_data %>% 
 #' tbl_summary(by = category,
