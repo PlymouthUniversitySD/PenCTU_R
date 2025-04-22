@@ -45,7 +45,7 @@ table_crf_completeness_data_preparation <- function(dataset, timepoint_name, cat
   }
   
   if(!(timepoint_name %in% dataset$redcap_event_name)) {
-    stop("Timepoint name doesn't exist!")
+    stop("Timepoint name doesn't match any timepoint names listed in dataset!")
   }
   
   if(is.null(api_token)) {
