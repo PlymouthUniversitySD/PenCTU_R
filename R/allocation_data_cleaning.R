@@ -25,7 +25,7 @@
 #'
 
 
-allocation_data_cleaning <- function(data, data_dictionary, allocation_column, allocation_event_name) {
+allocation_data_cleaning <- function(data, data_dictionary, field_name_column, select_choices_column, allocation_column, allocation_event_name) {
   # Check for null parameters
   params <- list(data = data, data_dictionary = data_dictionary, 
                  allocation_column = allocation_column, allocation_event_name = allocation_event_name)
@@ -42,21 +42,29 @@ allocation_data_cleaning <- function(data, data_dictionary, allocation_column, a
     stop("Files provided are not valid")
   }
   
-  # Check that field name provided matches with existing field names in data dictionary
-  if (!allocation_column %in% data_dictionary$field_name) {
-    stop("Value provided for allocation_column doesn't match existing field names in data dictionary")
+  if(!field_name_column %in% colnames(data_dictionary)) {
+    stop("Field Name Column provided doesn't match any existing columns in the data dictionary!")
   }
-
+  
+  if(!select_choices_column %in% colnames(data_dictionary)) {
+    stop("Select Choices Column provided doesn't match any existing columns in the data dictionary!")
+  }
+  
+  # Check that field name provided matches with existing field names in data dictionary
+  if (!allocation_column %in% data_dictionary[[field_name_column]]) {
+    stop(paste(allocation_column, " provided for allocation_column doesn't match existing field names in data dictionary"))
+  }
+  
   # Check that event name provided matches existing event names in dataset.
-  if(!allocation_event_name %in% data$redcap_event_name){
+  if(!(allocation_event_name %in% data$redcap_event_name)){
     stop("Value provided for allocation_event_name doesn't match existing event names in dataset")
   }
   
   # Function as normal after all checks have been passed
   
-  pdallocation_row <- data_dictionary[data_dictionary$field_name == allocation_column, ]
-    
-  select_choices <- pdallocation_row$select_choices_or_calculations
+  pdallocation_row <- data_dictionary[data_dictionary[[field_name_column]] == allocation_column, ]
+  
+  select_choices <- pdallocation_row[[select_choices_column]]
   
   choices <- unlist(strsplit(select_choices, "\\|"))
   
@@ -72,9 +80,7 @@ allocation_data_cleaning <- function(data, data_dictionary, allocation_column, a
   }
   
   responses_df <- data.frame(raw_value = raw_values, level_value = trimws(level_values))
-  
   new_row <- data.frame(raw_value = 777, level_value = 'Awaiting randomisation')
-  
   responses_df <- rbind(responses_df, new_row)
   
   allocation_mapping <-  data %>%
