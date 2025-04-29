@@ -8,6 +8,8 @@
 #'
 #' @param data A REDcap export dataset.
 #' @param data_dictionary A REDcap export data dictionary.
+#' @param field_name_column Column name where field names are stored in data dictionary
+#' @param select_choices_column Column name where allocation data codes (1 for Control, 2 for Intervention) will be retrieved
 #' @param allocation_column Column name where allocation data is stored.
 #' @param allocation_event_name Event name where allocations are assigned to participants.
 
@@ -18,7 +20,7 @@
 #' 
 #' @examples:
 #' Example useage:
-#' dataset <- allocation_data_cleaning(data, data_dictionary, "pdallocation", "randomisation_arm_1")
+#' dataset <- allocation_data_cleaning(data, data_dictionary, "Variable...Field.Name", "Choices..Calculations..OR.Slider.Labels", "pdallocation", "randomisation_arm_1")
 #' 
 #'
 #' @export
