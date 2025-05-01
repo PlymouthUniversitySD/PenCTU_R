@@ -57,8 +57,10 @@ table_demographics_data_preparation <- function(dataset, demographic_columns, de
     stop("category must be 'Allocation' or 'Site'")
   }
   
-  if(!any(demographic_columns) %in% colnames(dataset)) {
-    stop("Column found in demographics_columns that isn't present in dataset")
+  missing_columns <- demographic_columns[!demographic_columns %in% colnames(dataset)]
+  
+  if (length(missing_columns) > 0) {
+    stop(paste("The following demographic column(s) are missing from the dataset:", paste(missing_columns, collapse = ", "), "- Please confirm that columns are correct"))
   }
   
   if(is.null(category_column)) {
@@ -112,6 +114,3 @@ table_demographics_data_preparation <- function(dataset, demographic_columns, de
   
   return(merged_dataset)
 }
-
-
-
