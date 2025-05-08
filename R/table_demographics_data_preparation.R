@@ -27,8 +27,8 @@
 #' 
 #' demographic_columns <- c("dmsexatbirth", "dmethnic", "dmemployment", "dmlivewith", "dmmarital", "dmindependence")
 #'
-#' demographics_table_data <- table_demographics_data_preparation(dataset, demographic_columns, "facetoface_screeni_arm_1",
-#'                                                                    "dmyob", "pdregisterdat", "participant_identi_arm_1", "Allocation")
+#' demographics_data <- table_demographics_data_preparation(demo_dataset, demographics_columns,'Face-to-face screening', ‘Allocation’, dob_column = 'dmyob',
+#'                                                          anchor_column = 'pdregisterdat', anchor_event = 'Participant identification')
 #' #example downstream usage:
 #' baseline_characteristics <-  demographics_table_data %>% 
 #' tbl_summary(by = category,
@@ -57,8 +57,10 @@ table_demographics_data_preparation <- function(dataset, demographic_columns, de
     stop("category must be 'Allocation' or 'Site'")
   }
   
-  if(!any(demographic_columns) %in% colnames(dataset)) {
-    stop("Column found in demographics_columns that isn't present in dataset")
+  missing_columns <- demographic_columns[!demographic_columns %in% colnames(dataset)]
+  
+  if (length(missing_columns) > 0) {
+    stop(paste("The following demographic column(s) are missing from the dataset:", paste(missing_columns, collapse = ", "), "- Please confirm that columns are correct"))
   }
   
   if(is.null(category_column)) {
@@ -112,6 +114,3 @@ table_demographics_data_preparation <- function(dataset, demographic_columns, de
   
   return(merged_dataset)
 }
-
-
-
