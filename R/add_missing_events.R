@@ -29,6 +29,30 @@
 
 add_missing_events <- function(dataset, event_data, condition=NULL, allocation=TRUE, site=TRUE){
   
+  required_columns <- c("anchor_event", "days_after", "days_upper", "days_lower", "anchor_date", "expected_event_date", "event_date", "event_name")
+  
+  if(!is.null(dataset) && !is.data.frame(dataset)) {
+    stop("Dataset not valid format!")
+  }
+  
+  if(!is.null(event_data) && !is.data.frame(event_data)) {
+    stop("Event data not valid format!")
+  }
+  
+  missing_columns <- required_columns[!required_columns %in% colnames(event_data)]
+  
+  if (!is.null(event_data) && length(missing_columns) > 0) {
+    stop(paste("The following column(s) are missing from the event_data file:", paste(missing_columns, collapse = ", "), "- Please confirm that columns are correct"))
+  }
+  
+  if(is.null(dataset)) {
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(event_data)) {
+    stop("Event data not provided!")
+  }
+  
   #calculate the upper limit of days after the anchor date
   event_data$days_total <- event_data$days_after + event_data$days_upper
   
@@ -211,5 +235,4 @@ add_missing_events <- function(dataset, event_data, condition=NULL, allocation=T
   filtered_data <- subset(filtered_data, select = -c(anchor_event, anchor_date, event_date, days_total))
   
   return(filtered_data)
-  
 }
