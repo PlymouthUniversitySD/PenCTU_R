@@ -14,30 +14,35 @@
 #' @importFrom dplyr group_by summarize across mutate everything sym
 #' @export
 check_field_completeness <- function(data, by = NULL, full = FALSE) {
-  stopifnot(is.data.frame(data))
   
-  if (!is.null(by)) {
-    data <- data %>% 
-      dplyr::mutate(!!by := as.character(!!dplyr::sym(by))) %>%
-      dplyr::group_by(!!dplyr::sym(by))
-  }
-  
-  NAs <- data %>%
-    dplyr::summarize(across(dplyr::everything(), ~ paste0(sum(is.na(.)), "/", n(), " (", round(sum(is.na(.)) / n() * 100), "%)"))) %>%
-    dplyr::mutate(Value = c('NA'), .before = dplyr::everything())
-  
-  
-  if (full) {
-    codes <- c(444, 555, 666, 777, 888, 999)
-    values <- c('444 - Not applicable', '555 - Other', '666 - Prefer not to say', '777 - Missing', '888 - Spoiled', '999 - Unknown')
-    lst <- lapply(codes, function(code) {
-      data %>%
-        summarise(across(everything(), ~paste0(sum(. == code, na.rm = TRUE), "/", n(), " (", round(sum(is.na(.)) / n() * 100), "%)"))) %>%
-        mutate(Value = c(values[which(codes == code)]), .before = everything())
-    })
+  if(is.null(data)){
+    stop("Data frame not provided!")
+  } else if(!is.null(data)){
+    stopifnot(is.data.frame(data))
     
-    return(do.call(rbind, c(list(NAs), lst)))
+    if (!is.null(by)) {
+      data <- data %>% 
+        dplyr::mutate(!!by := as.character(!!dplyr::sym(by))) %>%
+        dplyr::group_by(!!dplyr::sym(by))
+    }
+    
+    NAs <- data %>%
+      dplyr::summarize(across(dplyr::everything(), ~ paste0(sum(is.na(.)), "/", n(), " (", round(sum(is.na(.)) / n() * 100), "%)"))) %>%
+      dplyr::mutate(Value = c('NA'), .before = dplyr::everything())
+    
+    
+    if (full) {
+      codes <- c(444, 555, 666, 777, 888, 999)
+      values <- c('444 - Not applicable', '555 - Other', '666 - Prefer not to say', '777 - Missing', '888 - Spoiled', '999 - Unknown')
+      lst <- lapply(codes, function(code) {
+        data %>%
+          summarise(across(everything(), ~paste0(sum(. == code, na.rm = TRUE), "/", n(), " (", round(sum(is.na(.)) / n() * 100), "%)"))) %>%
+          mutate(Value = c(values[which(codes == code)]), .before = everything())
+      })
+      
+      return(do.call(rbind, c(list(NAs), lst)))
+    }
+    
+    return(NAs)
   }
-  
-  return(NAs)
 }
