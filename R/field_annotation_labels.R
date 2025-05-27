@@ -18,7 +18,14 @@
 #' @export
 
 field_annotation_labels <- function(dataset, data_dictionary){
-
+  if(is.null(dataset)) {
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(data_dictionary)) {
+    stop("Data dictionary not provided!")
+  }
+  
   #Remove any action tags from the field annotation column
   data_dictionary$field_annotation <- sub(" @.*", "", data_dictionary$field_annotation)
   
