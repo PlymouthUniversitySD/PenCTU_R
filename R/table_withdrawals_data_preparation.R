@@ -32,7 +32,35 @@
 #'  @export
 
 table_withdrawals_data_preparation <- function(dataset, withdrawal_date_column, withdrawal_reason_column, withdrawal_event_name, allocation = FALSE,
-                                              early_discontinuation_column = NULL, full_withdrawal_option = NULL){
+                                               early_discontinuation_column = NULL, full_withdrawal_option = NULL){
+  
+  if(is.null(dataset)) {
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(withdrawal_date_column)) {
+    stop("Withdrawal date column not provided!")
+  }
+  
+  if(is.null(withdrawal_reason_column)) {
+    stop("Withdrawal reason column not provided!")
+  }
+  
+  if(is.null(withdrawal_event_name)) {
+    stop("Withdrawal event name not provided!")
+  }
+  
+  if(!any(grepl(withdrawal_date_column, colnames(dataset), fixed=TRUE))) {
+    stop("Withdrawal date column name doesn't match any columns in the dataset")
+  }
+  
+  if(!any(grepl(withdrawal_reason_column, colnames(dataset), fixed=TRUE))) {
+    stop("Withdrawal reason column name doesn't match any columns in the dataset")
+  }
+  
+  if(!any(dataset$redcap_event_name == withdrawal_event_name)) {
+    stop("Withdrawal event name doesn't match any columns in the dataset")
+  }
   
   processdataset <- subset(dataset, redcap_event_name == withdrawal_event_name)
   
@@ -50,8 +78,7 @@ table_withdrawals_data_preparation <- function(dataset, withdrawal_date_column, 
   names(processdataset)[which(names(processdataset) == withdrawal_date_column)] <- "Withdrawal date"  
   names(processdataset)[which(names(processdataset) == withdrawal_reason_column)] <- "Withdrawal reason" 
   names(processdataset)[names(processdataset) == "record_id"] <- "Participant ID"
-
+  
   return(processdataset)
   
 }
-
