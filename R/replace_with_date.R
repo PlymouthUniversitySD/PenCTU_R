@@ -13,6 +13,9 @@
 #' @return The modified row with the 'anchor_date' column replaced if specified.
 
 replace_with_date <- function(row) {
+  if(is.null(row)) {
+    stop("Row not provided!")
+  }
   # Extract the anchor_date column value and convert it to character
   anchor_date_col <- as.character(row[['anchor_date']])
   

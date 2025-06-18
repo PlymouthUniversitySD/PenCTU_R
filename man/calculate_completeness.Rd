@@ -2,7 +2,7 @@
 % Please edit documentation in R/calculate_completeness.R
 \name{calculate_completeness}
 \alias{calculate_completeness}
-\title{Calculates the completeness of a timepoint based on the \emph{timepoint_name}_compelte column values.}
+\title{Calculates the completeness of a timepoint based on the \emph{timepoint_name}_complete column values.}
 \usage{
 calculate_completeness(row)
 }
@@ -13,7 +13,7 @@ calculate_completeness(row)
 A value indicated the completeness of the timepoint.
 }
 \description{
-Outputs "Complete", "Partially complete", "Not started or "Undefined" as the completeness value for a row in a defined dataset.Used in conjundtion with plot_crf_completeness_data_preparation function.
+Outputs "Complete", "Partially complete", "Not started or "Undefined" as the completeness value for a row in a defined dataset.Used in conjunction with plot_crf_completeness_data_preparation function.
 }
 \examples{
 

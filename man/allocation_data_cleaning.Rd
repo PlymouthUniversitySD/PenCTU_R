@@ -7,6 +7,8 @@
 allocation_data_cleaning(
   data,
   data_dictionary,
+  field_name_column,
+  select_choices_column,
   allocation_column,
   allocation_event_name
 )
@@ -15,6 +17,10 @@ allocation_data_cleaning(
 \item{data}{A REDcap export dataset.}
 
 \item{data_dictionary}{A REDcap export data dictionary.}
+
+\item{field_name_column}{Column name where field names are stored in data dictionary}
+
+\item{select_choices_column}{Column name where allocation data codes (1 for Control, 2 for Intervention) will be retrieved}
 
 \item{allocation_column}{Column name where allocation data is stored.}
 
@@ -29,7 +35,7 @@ This function applies allocations to all rows for a participant
 \examples{
 :
 Example useage:
-dataset <- allocation_data_cleaning(data, data_dictionary, "pdallocation", "randomisation_arm_1")
+dataset <- allocation_data_cleaning(data, data_dictionary, "Variable...Field.Name", "Choices..Calculations..OR.Slider.Labels", "pdallocation", "randomisation_arm_1")
 
 
 }
