@@ -8,6 +8,7 @@ table_demographics_data_preparation(
   dataset,
   demographic_columns,
   demographics_event,
+  category_column,
   dob_column = NULL,
   anchor_column = NULL,
   anchor_event = NULL
@@ -19,6 +20,8 @@ table_demographics_data_preparation(
 \item{demographic_columns}{A vector of desired columns to be presented in the demographics table, separated by a comma.}
 
 \item{demographics_event}{The name of the event in which demographics data is collected and where the demographic_columns are located.}
+
+\item{category_column}{The name of the column that we organise the final dataset by}
 
 \item{dob_column}{The name of the date of birth column. NULL by default.}
 
@@ -41,8 +44,8 @@ selects all fo the desired demographics columns into a concise dataset.
 
 demographic_columns <- c("dmsexatbirth", "dmethnic", "dmemployment", "dmlivewith", "dmmarital", "dmindependence")
 
-demographics_table_data <- table_demographics_data_preparation(dataset, demographic_columns, "facetoface_screeni_arm_1",
-                                                                   "dmyob", "pdregisterdat", "participant_identi_arm_1")
+demographics_data <- table_demographics_data_preparation(demo_dataset, demographics_columns,'Face-to-face screening', ‘Allocation’, dob_column = 'dmyob',
+                                                         anchor_column = 'pdregisterdat', anchor_event = 'Participant identification')
 #example downstream usage:
 baseline_characteristics <-  demographics_table_data \%>\% 
 tbl_summary(by = category,
