@@ -89,11 +89,10 @@ plot_recruitment_overall <- function(data, recruitment_start, recruitment_length
     # Arrange by date
     arrange(as.Date(paste0(year_month, "-01")))
   
-  test_date = as.Date("2025-04-18", format="%Y-%m-%d")
   
   # Generate a sequence of year-months from recruitment start
   year_months <- seq(from = floor_date(recruitment_start, unit = "month"), 
-                     to = floor_date(test_date, unit = "month"), by = "1 month")
+                     to = floor_date(today_date, unit = "month"), by = "1 month")
   year_months <- format(year_months, "%Y-%m")
   
   # Create a dataframe with all year-months
