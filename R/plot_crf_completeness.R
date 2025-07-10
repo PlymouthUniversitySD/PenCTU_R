@@ -25,7 +25,27 @@
 #'
 
 plot_crf_completeness <- function(dataset, timepoint_names, category, api_token, test=FALSE){
-
+  
+  if(is.null(timepoint_names)) {
+    stop("Timepoint names not provided!")
+  }
+  
+  if(is.null(dataset)) {
+    stop("Dataset not provided!")
+  }
+  
+  if(is.null(category)) {
+    stop("Category not provided!")
+  }
+  
+  if(is.null(api_token)) {
+    stop("API token not provided!")
+  }
+  
+  if(!is.null(category) && !(category %in% c('Allocation', 'Site'))) {
+    stop("category must be 'Allocation' or 'Site'")
+  }
+  
   complete_data <- plot_crf_completeness_dataset_preparation(dataset, timepoint_names, category, api_token, test)
   
   status_colors <- c("Complete" = "#09eb18", "Partially complete" = "#ffdd00", "Not started" = "#ff0400")
