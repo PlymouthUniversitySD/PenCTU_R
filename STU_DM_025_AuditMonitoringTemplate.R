@@ -67,7 +67,7 @@ audit$action <- sub("Update record.*", "Update record", audit$action)
 #Define PenCTU users
 excluded_users <- c("ryan.ashford@plymouth.ac.uk", "paigan.aspinall@plymouth.ac.uk", "mark.warner@plymouth.ac.uk", 
                     "hanna.abraham@plymouth.ac.uk", "reece.tarrant@plymouth.ac.uk", "daniel.maddock@plymouth.ac.uk", 
-                    "helen.hambly@plymouth.ac.uk", "brian.wainman@plymouth.ac.uk") #\update if new staff join the team
+                    "helen.hambly@plymouth.ac.uk", "brian.wainman@plymouth.ac.uk", "lucy.wilson@plymouth.ac.uk") #\update if new staff join the team
 
 ##CREATE DOCUMENT
 audit_review <- read_docx()
@@ -140,7 +140,8 @@ dataentry <- audit %>%
            action == "Update record" & username == "helen.hambly@plymouth.ac.uk"|action == "Update record" & username == "brian.wainman@plymouth.ac.uk")
 
 dataentry <- dataentry %>%
-  filter(!is.na(details) & timestamp >= last_month & timestamp < today & !grepl("complete", details, ignore.case = TRUE))%>%
+  filter(!is.na(details) & timestamp >= last_month & timestamp < today &
+  !grepl("complete", details, ignore.case = TRUE) & !grepl("^\\[instance", details, ignore.case = TRUE)) %>%
   select(timestamp, username, details, record)
 
 entrylog <- admin %>% 
@@ -162,6 +163,24 @@ entry_table <- set_table_properties(entry_table, width = 0.8, layout = "autofit"
 
 audit_review <- audit_review %>% 
   body_add_flextable(entry_table)
+
+##Identification of out of hours user access
+audit_review <- audit_review %>%
+  body_add_par("Out of hours activity (outside 07:00-22:00)", style = "heading 1")
+
+hours <- audit %>% 
+  filter(timestamp >= last_month)
+
+hours <- hours %>%
+  mutate(timestamp = ymd_hm(timestamp)) %>%
+  filter(hour(timestamp) < 7 | hour(timestamp) >= 22)
+
+outofhours <-flextable(hours)
+
+outofhours <- set_table_properties(outofhours, width = 0.8, layout = "autofit")
+
+audit_review <- audit_review %>% 
+  body_add_flextable(outofhours)
 
 #set today's date
 today_date <- Sys.Date()
