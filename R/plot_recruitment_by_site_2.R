@@ -90,9 +90,6 @@ plot_recruitment_by_site_2 <- function(recruitment_start, site_opening_dates, en
     month_count_site <- enrolment_data %>%
       filter(site_data == site_name)
     
-    if(!(site_name %in% month_count_site$site_data)) {
-      stop(paste0(site_name, " not found in site data!"))
-    }
     
     # Ensure recruitment_start is a Date object and generate the date sequence
     date_sequence <- seq(as.Date(format(recruitment_start, "%Y-%m-01")), 
