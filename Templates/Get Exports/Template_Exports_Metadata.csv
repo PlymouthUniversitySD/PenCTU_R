@@ -1,0 +1,13 @@
+﻿export_id,export_name,format
+470,ScreeningLog,raw
+471,Registration,labelled
+631,SubgroupRandomisation,label_headers
+,,
+,,
+,,
+,,
+,,
+Complete this document with a complete list of exports that you want to download,,
+"Include the export ID from REDCap, the name of the export as you want it to appear in the file name (e.g., entering 'ExportName' would give an output of STUDYNAME_ExportName_DD-MM-YYYY)",,
+"The format you want for the export. Raw = raw data and raw column names, labelled = labelled data and labelled column names, label_headers = raw data and labelled column names.",,
+Delete this instructional data before saving.,,
