@@ -20,8 +20,6 @@
 #' @export
 #'
 
-library(lubridate)
-
 date_range_validation_standard <- function(dataset, rules) {
   if(is.null(dataset)){
     stop("Dataset not provided!")
@@ -47,7 +45,7 @@ date_range_validation_standard <- function(dataset, rules) {
   
   #set today's date
   today_date <- as.character(Sys.Date())
-  
+  library(lubridate)
   #create an output dataframe
   final_subset <- data.frame()
   

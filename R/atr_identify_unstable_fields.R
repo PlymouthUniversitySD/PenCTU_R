@@ -1,8 +1,8 @@
 #Title: ATR - Identify unstable fields
 #Author: Paigan Aspinall
 #Version & Date: V1.0.0 22MAY2026
-
 #R version: 4.4.3
+
 #' Identify Unstable Fields
 #'
 #' Identifies fields within the audit trail dataset that have one or more
@@ -26,8 +26,6 @@
 #'   }
 #'   \item Fields with names ending in \code{"_complete"}
 #'   \item Data Access Group assignment fields
-#' }
-#'   \item Fields with names ending in \code{"_complete"}
 #' }
 #'
 #' @param atr_data A data frame containing REDCap audit trail data. Expected

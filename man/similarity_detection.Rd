@@ -14,20 +14,66 @@ similarity_detection(
 \arguments{
 \item{data}{A REDCap export dataset.}
 
-\item{metadata}{A critical data item metadata dataframe.}
+\item{metadata}{A critical data item metadata dataframe. Required fields are
+identified using the \code{required_yn} column.}
 
-\item{min_comparable_fields}{Minimum number of shared non-missing fields required for comparison.}
+\item{min_comparable_fields}{Minimum number of shared non-missing fields
+required before a comparison is performed.}
 
-\item{similarity_threshold}{Similarity threshold used to flag record pairs.}
+\item{similarity_threshold}{Minimum similarity score required for a record
+pair to be returned. Values range from 0 to 1.}
 }
 \value{
-A dataframe containing pairs of records with high similarity.
+A dataframe containing:
+\describe{
+\item{record_id_1}{First record identifier}
+\item{record_id_2}{Second record identifier}
+\item{site_1}{Site associated with the first record}
+\item{site_2}{Site associated with the second record}
+\item{event_1}{Event associated with the first record}
+\item{event_2}{Event associated with the second record}
+\item{comparable_fields}{Number of fields with non-missing values in both records}
+\item{matching_fields}{Number of matching values across comparable fields}
+\item{similarity}{Proportion of matching fields}
+\item{matching_field_names}{Semi-colon separated list of fields with identical values}
+\item{non_matching_field_names}{Semi-colon separated list of fields with differing values}
+}
+
+Results are ordered according to the order in which record pairs are
+identified. Higher similarity values indicate greater similarity between
+records.
 }
 \description{
 This function compares non-repeating REDCap records across required critical
-data items and identifies pairs of records with high similarity.
+data items and identifies pairs of records with a high degree of similarity.
+}
+\details{
+The function is intended to support central statistical monitoring by
+identifying potential duplicate participants, duplicate data entry,
+fabricated records, or records that are unexpectedly similar.
+
+Comparisons are restricted to required fields defined within the metadata.
+Numeric values are rounded to one decimal place prior to comparison to reduce
+the impact of trivial numerical differences.
+
+For each pair of records, the function:
+\itemize{
+\item Identifies fields where both records contain non-missing values.
+\item Calculates the number of matching values across comparable fields.
+\item Calculates a similarity score:
+\deqn{
+  Similarity = Matching\ Fields / Comparable\ Fields
+  }
+\item Returns record pairs exceeding the specified similarity threshold.
+}
+
+The output additionally reports the names of matching and non-matching
+fields to facilitate review of potentially duplicated records.
 }
 \examples{
-similarity_results <- similarity_detection(data, metadata)
+similarity_results <- similarity_detection(
+  data = data,
+  metadata = metadata
+)
 
 }

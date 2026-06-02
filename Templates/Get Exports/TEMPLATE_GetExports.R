@@ -1,4 +1,4 @@
-#Title: Get REFRESH Exports
+#Title: Get REDCap Exports
 #Author: Paigan Aspinall
 #Version & Date: V1.0.0 27APR2026
 #R version: 4.4.3
