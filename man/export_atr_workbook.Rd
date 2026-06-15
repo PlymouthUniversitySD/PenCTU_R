@@ -5,10 +5,12 @@
 \title{Export ATR Workbook}
 \usage{
 export_atr_workbook(
-  critical_data_changes,
-  user_data_changes,
-  monthly_user_changes,
-  unstable_fields,
+  critical_data_changes = NULL,
+  user_data_changes = NULL,
+  monthly_user_changes = NULL,
+  unstable_fields = NULL,
+  time_to_change = NULL,
+  out_of_hours_changes = NULL,
   document_id,
   study_name,
   file = "ATR_review_output.xlsx"
@@ -23,15 +25,15 @@ export_atr_workbook(
 
 \item{unstable_fields}{Optional data frame of unstable fields.}
 
+\item{time_to_change}{Optional data frame of time between changes.}
+
+\item{out_of_hours_changes}{Optional data frame of out-of-hours changes.}
+
 \item{document_id}{Character string containing the document ID.}
 
 \item{study_name}{Character string containing the study name.}
 
 \item{file}{Output Excel file name.}
-
-\item{time_to_change}{Optional data frame of time between changes.}
-
-\item{out_of_hours_changes}{Optional data frame of out-of-hours changes.}
 }
 \value{
 Saves an Excel workbook to the specified file path.

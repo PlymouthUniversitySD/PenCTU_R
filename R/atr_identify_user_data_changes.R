@@ -16,11 +16,15 @@
 #'   \item \code{old_value != new_value}
 #' }
 #'
-#' The following usernames are excluded:
+#' The following fields are excluded:
 #' \itemize{
-#'   \item \code{"SYSTEM"}
-#'   \item \code{"[survey respondent]"}
-#'   \item Missing usernames
+#'   \item Fields annotated within the metadata dataset using:
+#'   \itemize{
+#'     \item \code{#DataManagement}
+#'     \item \code{#SystemFunctionality}
+#'     \item \code{#TrialManagement}
+#'   }
+#'   \item Fields with names ending in \code{"_complete"}
 #' }
 #' 
 #' #' The following fields are excluded:
@@ -50,6 +54,13 @@
 #'     \item{field_annotation}{Field annotation text}
 #'   }
 #'
+#'#' @param metadata A data frame containing REDCap metadata. Expected columns
+#'   include:
+#'   \describe{
+#'     \item{field_name}{Field/variable name}
+#'     \item{field_annotation}{Field annotation text}
+#'   }
+#'   
 #' @return A data frame containing:
 #'   \describe{
 #'     \item{username}{Username associated with qualifying changes}
@@ -61,7 +72,7 @@
 #'   atr_data = atr_data,
 #'   metadata = metadata
 #' )
-#'
+#' 
 #' @export
 
 identify_user_data_changes <- function(
