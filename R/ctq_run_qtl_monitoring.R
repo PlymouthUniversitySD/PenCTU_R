@@ -78,7 +78,11 @@
 #'
 #' @export
 #' 
-run_qtl_monitoring <- function(metadata, env = parent.frame()) {
+run_qtl_monitoring <- function(
+    metadata,
+    output_file = NULL,
+    env = parent.frame()
+) {
   
   results <- list()
   recruitment_count <- NA
@@ -350,5 +354,137 @@ run_qtl_monitoring <- function(metadata, env = parent.frame()) {
     )
   }
   
-  dplyr::bind_rows(results)
+  results_df <- dplyr::bind_rows(results)
+  
+  if (!is.null(output_file)) {
+    
+    if (!grepl("\\.xlsx$", output_file, ignore.case = TRUE)) {
+      output_file <- paste0(output_file, ".xlsx")
+    }
+    
+    wb <- openxlsx::createWorkbook(
+      creator = "Paigan Aspinall"
+    )
+    
+    openxlsx::addWorksheet(
+      wb,
+      "QTL Monitoring"
+    )
+    
+    title_style <- openxlsx::createStyle(
+      fontSize = 14,
+      textDecoration = "bold",
+      fgFill = "#D9EAD3",
+      halign = "center",
+      border = "Bottom"
+    )
+    
+    header_style <- openxlsx::createStyle(
+      textDecoration = "bold",
+      fgFill = "#D9EAD3",
+      border = "TopBottomLeftRight"
+    )
+    
+    percent_style <- openxlsx::createStyle(
+      numFmt = "0.0"
+    )
+    
+    rag_styles <- list(
+      green = openxlsx::createStyle(
+        fgFill = "#C6EFCE"
+      ),
+      amber = openxlsx::createStyle(
+        fgFill = "#FFE699"
+      ),
+      red = openxlsx::createStyle(
+        fgFill = "#F4CCCC"
+      )
+    )
+    
+    openxlsx::mergeCells(
+      wb,
+      sheet = 1,
+      cols = 1:4,
+      rows = 1
+    )
+    
+    openxlsx::writeData(
+      wb,
+      sheet = 1,
+      x = "Quality Tolerance Limit Monitoring",
+      startRow = 1,
+      colNames = FALSE
+    )
+    
+    openxlsx::addStyle(
+      wb,
+      sheet = 1,
+      style = title_style,
+      rows = 1,
+      cols = 1:4,
+      gridExpand = TRUE
+    )
+    
+    openxlsx::writeData(
+      wb,
+      sheet = 1,
+      x = results_df,
+      startRow = 3,
+      headerStyle = header_style,
+      withFilter = TRUE
+    )
+    
+    openxlsx::addStyle(
+      wb,
+      sheet = 1,
+      style = percent_style,
+      rows = 4:(nrow(results_df) + 3),
+      cols = 3,
+      gridExpand = TRUE,
+      stack = TRUE
+    )
+    
+    for (colour in names(rag_styles)) {
+      
+      rows <- which(results_df$flag == colour)
+      
+      if (length(rows) > 0) {
+        
+        openxlsx::addStyle(
+          wb,
+          sheet = 1,
+          style = rag_styles[[colour]],
+          rows = rows + 3,
+          cols = 4,
+          gridExpand = TRUE,
+          stack = TRUE
+        )
+        
+      }
+      
+    }
+    
+    openxlsx::setColWidths(
+      wb,
+      sheet = 1,
+      cols = 1:4,
+      widths = "auto"
+    )
+    
+    openxlsx::freezePane(
+      wb,
+      sheet = 1,
+      firstRow = TRUE,
+      firstCol = TRUE
+    )
+    
+    openxlsx::saveWorkbook(
+      wb,
+      output_file,
+      overwrite = TRUE
+    )
+    
+  }
+  
+  return(results_df)
 }

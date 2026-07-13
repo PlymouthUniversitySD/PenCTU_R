@@ -1,0 +1,7 @@
+﻿qtl_description,qtl_id,green_band,amber_band,red_band,field,event_name,export_name,positive_condition,negative_condition,further_condition,conditional_event,conditional_field,conditional_logic
+% of participants enrolled versus the expected recruitment target.,timely_recruitment,>=90%,75-89%,<75%,,,,,,,,,
+% of drop out for any reason,participant_retention,<10%,10-24%,>=25%,,,,,,,,,
+% completed data for primary endpoint,endpoint_completeness,>=90%,75-89%,<75%,,,,,,,,,
+% of participants with one or more SAEs ,total_saes,<10%,10-24%,>=25%,,,,,,,,,
+% of participants with one or more related SAE,related_saes,<10%,10-24%,>=25%,,,,,,,,,
+% participants complying with IMP dosage ,imp_compliance,>=90%,75-89%,<75%,,,,,,,,,

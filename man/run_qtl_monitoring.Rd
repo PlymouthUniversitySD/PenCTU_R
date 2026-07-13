@@ -4,7 +4,7 @@
 \alias{run_qtl_monitoring}
 \title{Run QTL Monitoring}
 \usage{
-run_qtl_monitoring(metadata, env = parent.frame())
+run_qtl_monitoring(metadata, output_file = NULL, env = parent.frame())
 }
 \arguments{
 \item{metadata}{A data frame containing the QTL specification. Expected
