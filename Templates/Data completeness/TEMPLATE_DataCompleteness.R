@@ -34,20 +34,7 @@ response <- httr::POST(url, body = formData, encode = "form")
 dataset <- httr::content(response)
 
 #Define sites
-sites <- c("001 - Avon View", 
-           "002 - Pendennis Residential Home", 
-           "003 - Chestnut Lodge", 
-           "004 - Three Corners Nursing Home", 
-           "006 - Hill House Nursing Home", 
-           "007 - Primley Court Nursing Home", 
-           "009 - Camelot House and Lodge", 
-           "011 - Mount Olivet nursing home", 
-           "013 - West Eaton Nursing Home", 
-           "014 - Heron House Residential Home", 
-           "016 - Trafalgar Care Home", 
-           "017 - summerdyne", 
-           "018 - Burwood nursing home", 
-           "022 - Mulberry House")
+sites <- c("001 - Avon View", "002 - Pendennis Residential Home",  "003 - Chestnut Lodge")
 
 #Define completeness statuses
 statuses <- c("Incomplete", "Partially complete", "Complete")
@@ -65,24 +52,10 @@ wb <- createWorkbook()
 
 #Define the completeness fields
 
-form_list <- c("timepoint_introduction_complete", 
-               "demographics_complete", 
-               "medical_history_complete", 
-               "antibiotic_use_complete", 
-               "functional_assessment_staging_tool_fast_complete", 
-               "clinical_frailty_scale_cfs_complete", 
-               "uk_eng_eq5d5l_redcap_proxy1_complete", 
-               "demqolch_complete", 
-               "mini_nutritional_assessment_mna_complete", 
-               "weight_complete", 
-               "modified_barthel_index_mbi_complete", 
-               "food_diary_complete", 
-               "end_of_visit_complete", 
-               "deviations_complete"
-)
+form_list <- c("timepoint_introduction_complete", "demographics_complete","medical_history_complete",  "antibiotic_use_complete")
 
 #Subset to isolate only the data from the timepoint
-baseline_data <- subset(dataset, redcap_event_name =="baseline_arm_1")
+baseline_data <- subset(dataset, redcap_event_name =="Baseline")
 
 #Isolate the completeness data
 baseline_completeness <- select(baseline_data, 'redcap_data_access_group', 'redcap_repeat_instance', form_list)
@@ -91,7 +64,7 @@ baseline_completeness <- select(baseline_data, 'redcap_data_access_group', 'redc
 baseline_data_completeness <- completeness_tracker_data_prep(baseline_completeness, form_list, sites, statuses, exclude_repeat_instances = TRUE) #may need to set last parameter to false if using a repeating event
 
 #Add the completeness data to the Excel sheet
-write_excel_completeness(wb, "Baseline", baseline_data_completeness, baseline_completeness, sites, statuses)
+write_excel_completeness(wb, "Baseline", baseline_data_completeness, baseline_completeness, sites, statuses, exclude_repeat_instances = TRUE)
 
 #---------------------------------------------------------
 #Add the above for as many timepoints as necessary
