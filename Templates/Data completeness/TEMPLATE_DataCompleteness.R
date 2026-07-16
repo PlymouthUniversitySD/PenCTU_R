@@ -1,6 +1,6 @@
 #Title: Data Completeness TEMPLATE
 #Author: Paigan Aspinall
-#Version & Date: V1.0.0 13JUL2026
+#Version & Date: V1.0.1 14JUL2026
 #R version: 4.4.3
 
 #Define token
@@ -12,6 +12,7 @@ study_name <- "STUDY NAME"
 #Load libraries
 library(PenCTU)
 library(lubridate)
+library(dplyr)
 library(openxlsx)
 
 #Import data
@@ -84,10 +85,10 @@ form_list <- c("timepoint_introduction_complete",
 baseline_data <- subset(dataset, redcap_event_name =="baseline_arm_1")
 
 #Isolate the completeness data
-baseline_completeness <- select(baseline_data, 'redcap_data_access_group', form_list)
+baseline_completeness <- select(baseline_data, 'redcap_data_access_group', 'redcap_repeat_instance', form_list)
 
 #Summarise the completeness data
-baseline_data_completeness <- completeness_tracker_data_prep(baseline_completeness, form_list, sites, statuses)
+baseline_data_completeness <- completeness_tracker_data_prep(baseline_completeness, form_list, sites, statuses, exclude_repeat_instances = TRUE) #may need to set last parameter to false if using a repeating event
 
 #Add the completeness data to the Excel sheet
 write_excel_completeness(wb, "Baseline", baseline_data_completeness, baseline_completeness, sites, statuses)

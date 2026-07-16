@@ -10,31 +10,39 @@ write_excel_completeness(
   summary_table,
   raw_data,
   sites,
-  statuses
+  statuses,
+  exclude_repeat_instances = FALSE
 )
 }
 \arguments{
 \item{wb}{An \code{openxlsx} workbook object to which the worksheet will be
 added.}
 
-\item{sheet_name}{Character string specifying the worksheet name. This value
-is also displayed as the worksheet timepoint.}
+\item{sheet_name}{A character string specifying the worksheet name. This
+value is also displayed as the worksheet timepoint.}
 
 \item{summary_table}{A data frame or matrix containing one row per form and
 one column for each site-status combination. The first column should
 contain the form name or form label.}
 
 \item{raw_data}{A data frame containing the underlying REDCap records used
-to calculate the number of form instances completed by site. The dataset
-must contain a \code{redcap_data_access_group} column.}
+to calculate the number of records or instances by site. The dataset must
+contain a \code{redcap_data_access_group} column. When
+\code{exclude_repeat_instances = TRUE}, it must also contain a
+\code{redcap_repeat_instance} column.}
 
 \item{sites}{A character vector defining the sites to display and their
-ordering within the worksheet. The value \code{"Unknown"} may be included
-where records without a Data Access Group should be displayed explicitly.}
+ordering within the worksheet. Include \code{"Unknown"} where records
+without a Data Access Group should be represented explicitly.}
 
-\item{statuses}{A character vector defining the completion-status columns
-displayed for each site. Expected values include \code{"Complete"},
-\code{"Partially complete"}, and \code{"Incomplete"}.}
+\item{statuses}{A character vector containing exactly three completion-status
+display labels. Values must be supplied in the following order:
+incomplete, unverified or partially complete, and complete.}
+
+\item{exclude_repeat_instances}{A logical value indicating whether repeating
+rows should be excluded from the site-level record or instance counts.
+When \code{TRUE}, rows with a \code{redcap_repeat_instance} value of
+\code{1} or greater are removed. Defaults to \code{FALSE}.}
 }
 \value{
 Invisibly modifies \code{wb} by adding and formatting the requested
@@ -42,8 +50,8 @@ worksheet. No explicit value is returned.
 }
 \description{
 Adds a formatted data-completeness worksheet to an existing Excel workbook.
-The worksheet summarises form completion status by site and presents both
-record-level counts and site-level percentages for each completion status.
+The worksheet summarises form-completion status by site and presents both
+form-level counts and site-level percentages for each completion status.
 }
 \details{
 The worksheet is structured dynamically according to the number of forms,
@@ -51,18 +59,36 @@ sites, and completion statuses supplied. Site headings are merged across the
 associated status columns, with participant or form-instance counts displayed
 beneath each site heading.
 
+The \code{statuses} argument must contain exactly three values in the
+following order:
+
+\enumerate{
+\item The label used for incomplete forms
+\item The label used for unverified or partially complete forms
+\item The label used for complete forms
+}
+
 The function writes:
 
 \itemize{
 \item The REDCap timepoint or worksheet name
 \item The total number of forms included in the summary
-\item The number of completed form instances recorded for each site
+\item The number of records or non-repeating instances for each site
 \item Form-level counts for each site and completion status
 \item The percentage distribution of completion statuses within each site
 }
 
-Participant or instance counts are calculated directly from
-\code{raw_data}. Records without a Data Access Group are assigned to an
+Site-level record or instance counts are calculated directly from
+\code{raw_data}. Repeat-instance rows can optionally be excluded from this
+calculation. When \code{exclude_repeat_instances = TRUE}, rows where
+\code{redcap_repeat_instance} is equal to or greater than \code{1} are
+removed before the site counts are calculated.
+
+Rows where \code{redcap_repeat_instance} is missing, blank, or equal to
+\code{0} are retained. If repeat instances are to be excluded,
+\code{raw_data} must contain a \code{redcap_repeat_instance} column.
+
+Records without a REDCap Data Access Group are assigned to the
 \code{"Unknown"} site category. Sites without any records are retained and
 assigned a count of zero.
 
@@ -70,26 +96,29 @@ Percentage calculations are written to Excel as formulas. For each site, the
 denominator is the sum of all completion-status counts across all included
 forms. The numerator is the sum of the selected status column across those
 forms. This produces the percentage of form instances classified under each
-status for that site.
+completion status for that site.
 
-Conditional formatting is applied to the percentage row using the following
-thresholds:
+Conditional formatting is applied according to the position of each status
+within \code{statuses}, rather than the text of the status label. This allows
+customised display labels to be used.
+
+The following thresholds are applied:
 
 \describe{
-\item{Complete}{
+\item{Third status: complete}{
 Green where completion is at least 85 percent; amber where completion is
-at least 75 percent but below 85 percent; red where completion is below
-75 percent.
+at least 75 percent but below 85 percent; and red where completion is
+below 75 percent.
 }
-\item{Partially complete}{
+\item{Second status: unverified or partially complete}{
 Green where the percentage is no more than 15 percent; amber where the
-percentage is above 15 percent and no more than 25 percent; red where the
-percentage is above 25 percent.
+percentage is above 15 percent and no more than 25 percent; and red where
+the percentage is above 25 percent.
 }
-\item{Incomplete}{
+\item{First status: incomplete}{
 Green where the percentage is no more than 15 percent; amber where the
-percentage is above 15 percent and no more than 25 percent; red where the
-percentage is above 25 percent.
+percentage is above 15 percent and no more than 25 percent; and red where
+the percentage is above 25 percent.
 }
 }
 
@@ -104,12 +133,17 @@ write_excel_completeness(
   sheet_name = "Week 12",
   summary_table = week_12_summary,
   raw_data = week_12_data,
-  sites = c("Site 1", "Site 2", "Unknown"),
+  sites = c(
+    "Site 1",
+    "Site 2",
+    "Unknown"
+  ),
   statuses = c(
-    "Complete",
+    "Incomplete",
     "Partially complete",
-    "Incomplete"
-  )
+    "Complete"
+  ),
+  exclude_repeat_instances = TRUE
 )
 
 openxlsx::saveWorkbook(
