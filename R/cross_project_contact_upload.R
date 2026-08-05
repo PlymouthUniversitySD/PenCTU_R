@@ -107,7 +107,7 @@ cross_project_contact_upload <- function(mapping, url) {
         rawOrLabelHeaders = "raw",
         exportCheckboxLabel = "false",
         exportSurveyFields = "false",
-        exportDataAccessGroups = "false",
+        exportDataAccessGroups = "true",
         returnFormat = "csv"
       )
       
@@ -126,7 +126,7 @@ cross_project_contact_upload <- function(mapping, url) {
         rawOrLabelHeaders = "raw",
         exportCheckboxLabel = "false",
         exportSurveyFields = "false",
-        exportDataAccessGroups = "false",
+        exportDataAccessGroups = "true",
         returnFormat = "csv"
       )
       
