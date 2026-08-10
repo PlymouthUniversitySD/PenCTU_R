@@ -1,6 +1,6 @@
 #Title: Brown-Forsythe Test Function
 #Author: Paigan Aspinall
-#Version & Date: V1.0.0 24APR2026
+#Version & Date: V1.0.1 10AUG2026
 #R version: 4.4.3
 
 #' Run Brown-Forsythe variance tests by site
@@ -8,6 +8,8 @@
 #' This function runs Brown-Forsythe tests for required continuous and derived
 #' variables to identify variables where variability differs between sites.
 #' Small sites and variables with insufficient data are excluded.
+#'
+#' Variables selected for analysis are coerced to numeric before testing.
 #'
 #' @param data A REDCap export dataset.
 #' @param metadata A critical data item metadata dataframe.
@@ -23,6 +25,7 @@
 #' \itemize{
 #'   \item \code{variance_results}: all Brown-Forsythe test results
 #'   \item \code{variance_flags}: variables with p-value below threshold
+#'   \item \code{skipped_vars}: variables excluded from testing and the reason
 #' }
 #'
 #' @importFrom dplyr "%>%"
@@ -33,16 +36,17 @@
 #' variance_flags <- variance_outputs$variance_flags
 #'
 #' @export
-#'
-variance_analysis <- function(data,
-                              metadata,
-                              variable_type_column = "variable_type",
-                              required_column = "required_yn",
-                              field_name_column = "field_name",
-                              site_column = "redcap_data_access_group",
-                              min_total_n = 10,
-                              min_site_n = 5,
-                              p_threshold = 0.05) {
+
+variance_analysis <- function(
+    data,
+    metadata,
+    variable_type_column = "variable_type",
+    required_column = "required_yn",
+    field_name_column = "field_name",
+    site_column = "redcap_data_access_group",
+    min_total_n = 10,
+    min_site_n = 5,
+    p_threshold = 0.05) {
   
   vars_for_summary <- metadata %>%
     dplyr::filter(
@@ -52,7 +56,9 @@ variance_analysis <- function(data,
     dplyr::pull(.data[[field_name_column]]) %>%
     unique()
   
-  vars_for_summary <- vars_for_summary[vars_for_summary %in% names(data)]
+  vars_for_summary <- vars_for_summary[
+    vars_for_summary %in% names(data)
+  ]
   
   variance_results <- list()
   skipped_vars <- list()
@@ -60,8 +66,14 @@ variance_analysis <- function(data,
   for (var in vars_for_summary) {
     
     df <- data %>%
-      dplyr::select(dplyr::all_of(site_column), dplyr::all_of(var)) %>%
-      dplyr::filter(!is.na(.data[[var]]))
+      dplyr::transmute(
+        site = as.factor(.data[[site_column]]),
+        value = as.numeric(.data[[var]])
+      ) %>%
+      dplyr::filter(
+        !is.na(site),
+        !is.na(value)
+      )
     
     if (nrow(df) < min_total_n) {
       skipped_vars[[var]] <- "too_few_records"
@@ -69,23 +81,25 @@ variance_analysis <- function(data,
     }
     
     df <- df %>%
-      dplyr::group_by(.data[[site_column]]) %>%
+      dplyr::group_by(site) %>%
       dplyr::filter(dplyr::n() >= min_site_n) %>%
-      dplyr::ungroup()
+      dplyr::ungroup() %>%
+      droplevels()
     
-    if (dplyr::n_distinct(df[[site_column]]) < 2) {
+    if (dplyr::n_distinct(df$site) < 2) {
       skipped_vars[[var]] <- "fewer_than_two_sites_after_filtering"
       next
     }
     
-    if (stats::sd(df[[var]], na.rm = TRUE) == 0) {
+    if (stats::sd(df$value, na.rm = TRUE) == 0) {
       skipped_vars[[var]] <- "zero_variance"
       next
     }
     
     test <- car::leveneTest(
-      df[[var]] ~ df[[site_column]],
-      center = median
+      value ~ site,
+      data = df,
+      center = stats::median
     )
     
     variance_results[[var]] <- data.frame(
@@ -96,11 +110,17 @@ variance_analysis <- function(data,
     )
   }
   
-  variance_results <- dplyr::bind_rows(variance_results) %>%
-    dplyr::arrange(p_value)
+  variance_results <- dplyr::bind_rows(variance_results)
   
-  variance_flags <- variance_results %>%
-    dplyr::filter(p_value < p_threshold)
+  if (nrow(variance_results) > 0) {
+    variance_results <- variance_results %>%
+      dplyr::arrange(p_value)
+    
+    variance_flags <- variance_results %>%
+      dplyr::filter(p_value < p_threshold)
+  } else {
+    variance_flags <- variance_results
+  }
   
   skipped_vars <- data.frame(
     variable = names(skipped_vars),

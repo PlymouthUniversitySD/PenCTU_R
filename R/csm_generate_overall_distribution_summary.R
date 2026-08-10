@@ -1,6 +1,6 @@
 #Title: Generate Distribution Summary Function
 #Author: Paigan Aspinall
-#Version & Date: V1.0.0 24APR2026
+#Version & Date: V1.0.1 10AUG2026
 #R version: 4.4.3
 
 #' Generate overall distribution summaries for required numeric variables
@@ -30,11 +30,12 @@
 #'
 #' @export
 
-overall_distribution_summary <- function(data,
-                                         metadata,
-                                         variable_type_column = "variable_type",
-                                         required_column = "required_yn",
-                                         field_name_column = "field_name") {
+overall_distribution_summary <- function(
+    data,
+    metadata,
+    variable_type_column = "variable_type",
+    required_column = "required_yn",
+    field_name_column = "field_name") {
   
   vars_for_summary <- metadata %>%
     dplyr::filter(
@@ -44,16 +45,25 @@ overall_distribution_summary <- function(data,
     dplyr::pull(.data[[field_name_column]]) %>%
     unique()
   
-  vars_for_summary <- vars_for_summary[vars_for_summary %in% names(data)]
+  vars_for_summary <- vars_for_summary[
+    vars_for_summary %in% names(data)
+  ]
   
   overall_summary <- lapply(vars_for_summary, function(var) {
     
     stats <- summary_stats(data[[var]])
     
+    # Ensure all summary statistics are numeric.
+    # This preserves valid missing statistics as NA.
+    stat_names <- names(stats)
+    stats <- as.numeric(stats)
+    names(stats) <- stat_names
+    
     data.frame(
       variable = var,
-      t(stats),
-      row.names = NULL
+      as.list(stats),
+      row.names = NULL,
+      check.names = FALSE
     )
     
   }) %>%
