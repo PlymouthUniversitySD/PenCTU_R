@@ -1,6 +1,6 @@
 #Title: ATR - Identify changes per user per month
 #Author: Paigan Aspinall
-#Version & Date: V1.0.0 22MAY2026
+#Version & Date: V1.1.0 12AUG2026
 #R version: 4.4.3
 
 #' Identify Monthly User Data Changes
@@ -36,7 +36,8 @@
 #' }
 #'
 #' Monthly summaries are derived from the \code{timestamp} field and returned
-#' in \code{YYYY-MM} format.
+#' in \code{YYYY-MM} format. Month columns are ordered chronologically from
+#' earliest to latest.
 #'
 #' @param atr_data A data frame containing REDCap audit trail data. Expected
 #'   columns include:
@@ -59,7 +60,8 @@
 #' @return A data frame containing:
 #'   \describe{
 #'     \item{username}{Username associated with qualifying changes}
-#'     \item{YYYY-MM}{One column per month containing the number of qualifying changes}
+#'     \item{YYYY-MM}{One column per month containing the number of qualifying
+#'     changes, ordered chronologically}
 #'   }
 #'
 #' @examples
@@ -77,6 +79,7 @@ identify_monthly_user_data_changes <- function(
   library(dplyr)
   library(tidyr)
   
+  # Identify fields to exclude
   excluded_fields <- metadata %>%
     filter(
       grepl(
@@ -86,7 +89,8 @@ identify_monthly_user_data_changes <- function(
     ) %>%
     pull(field_name)
   
-  atr_data %>%
+  # Identify qualifying changes and summarise by user and month
+  monthly_changes <- atr_data %>%
     filter(
       !is.na(username),
       username != "SYSTEM",
@@ -110,10 +114,17 @@ identify_monthly_user_data_changes <- function(
       n_changes = n(),
       .groups = "drop"
     ) %>%
+    arrange(month)
+  
+  # Convert to wide format
+  monthly_user_changes <- monthly_changes %>%
     pivot_wider(
       names_from = month,
       values_from = n_changes,
-      values_fill = 0
+      values_fill = 0,
+      names_sort = TRUE
     ) %>%
     arrange(username)
+  
+  return(monthly_user_changes)
 }
