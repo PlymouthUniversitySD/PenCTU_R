@@ -40,12 +40,16 @@ A list containing:
 \itemize{
 \item \code{variance_results}: all Brown-Forsythe test results
 \item \code{variance_flags}: variables with p-value below threshold
+\item \code{skipped_vars}: variables excluded from testing and the reason
 }
 }
 \description{
 This function runs Brown-Forsythe tests for required continuous and derived
 variables to identify variables where variability differs between sites.
 Small sites and variables with insufficient data are excluded.
+}
+\details{
+Variables selected for analysis are coerced to numeric before testing.
 }
 \examples{
 variance_outputs <- variance_analysis(data, metadata)

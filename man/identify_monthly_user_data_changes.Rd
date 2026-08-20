@@ -29,7 +29,8 @@ include:
 A data frame containing:
 \describe{
 \item{username}{Username associated with qualifying changes}
-\item{YYYY-MM}{One column per month containing the number of qualifying changes}
+\item{YYYY-MM}{One column per month containing the number of qualifying
+changes, ordered chronologically}
 }
 }
 \description{
@@ -65,7 +66,8 @@ The following fields are excluded:
 }
 
 Monthly summaries are derived from the \code{timestamp} field and returned
-in \code{YYYY-MM} format.
+in \code{YYYY-MM} format. Month columns are ordered chronologically from
+earliest to latest.
 }
 \examples{
 monthly_user_changes <- identify_monthly_user_data_changes(

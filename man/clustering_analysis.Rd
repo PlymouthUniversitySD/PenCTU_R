@@ -55,6 +55,11 @@ This function runs k-means clustering for continuous variables within each
 multivariate group defined in the metadata. It is intended as an exploratory
 analysis to identify unusual clustering patterns or site-dominated clusters.
 }
+\details{
+Variables selected for clustering are coerced to numeric before complete-case
+filtering. Records containing missing or non-finite values in any clustering
+variable are excluded from the analysis.
+}
 \examples{
 cluster_outputs <- clustering_analysis(data, metadata)
 

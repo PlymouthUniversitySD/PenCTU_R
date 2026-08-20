@@ -7,15 +7,25 @@
 similarity_detection(
   data,
   metadata,
+  site_column = "redcap_data_access_group",
+  event_column = "redcap_event_name",
+  repeat_instance_column = "redcap_repeat_instance",
   min_comparable_fields = 3,
   similarity_threshold = 0.8
 )
 }
 \arguments{
-\item{data}{A REDCap export dataset.}
+\item{data}{A REDCap export dataset. The first column is assumed to contain
+the record or participant identifier.}
 
 \item{metadata}{A critical data item metadata dataframe. Required fields are
 identified using the \code{required_yn} column.}
+
+\item{site_column}{Column name representing site/group.}
+
+\item{event_column}{Column name representing the REDCap event.}
+
+\item{repeat_instance_column}{Column containing the REDCap repeat instance.}
 
 \item{min_comparable_fields}{Minimum number of shared non-missing fields
 required before a comparison is performed.}
@@ -38,10 +48,6 @@ A dataframe containing:
 \item{matching_field_names}{Semi-colon separated list of fields with identical values}
 \item{non_matching_field_names}{Semi-colon separated list of fields with differing values}
 }
-
-Results are ordered according to the order in which record pairs are
-identified. Higher similarity values indicate greater similarity between
-records.
 }
 \description{
 This function compares non-repeating REDCap records across required critical
@@ -55,6 +61,9 @@ fabricated records, or records that are unexpectedly similar.
 Comparisons are restricted to required fields defined within the metadata.
 Numeric values are rounded to one decimal place prior to comparison to reduce
 the impact of trivial numerical differences.
+
+The first column of the dataset is assumed to contain the REDCap record or
+participant identifier.
 
 For each pair of records, the function:
 \itemize{

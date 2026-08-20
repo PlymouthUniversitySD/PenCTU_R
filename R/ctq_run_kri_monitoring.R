@@ -49,6 +49,299 @@ produce_kri_report <- function(
   # ==========================================================================
   # Validation and helper functions
   # ==========================================================================
+  # --------------------------------------------------------------------------
+  # Expected recruitment by site as of a specified date
+  #
+  # expected_recruitment_data should contain:
+  #   month
+  #   expected_recruitment
+  #   one additional column per site
+  #
+  # Monthly values represent cumulative recruitment expected at the END
+  # of each month.
+  # --------------------------------------------------------------------------
+  
+  get_expected_recruitment_by_site <- function(
+    expected_recruitment_data,
+    current_date = Sys.Date()
+  ) {
+    
+    recruitment_plan <- expected_recruitment_data
+    
+    
+    if (!"month" %in% names(recruitment_plan)) {
+      stop(
+        "`expected_recruitment_data` must contain a `month` column.",
+        call. = FALSE
+      )
+    }
+    
+    
+    # Convert values such as Jul-26 to dates
+    recruitment_plan$month_start <- as.Date(
+      paste0(
+        "01-",
+        recruitment_plan$month
+      ),
+      format = "%d-%b-%y"
+    )
+    
+    
+    if (any(is.na(recruitment_plan$month_start))) {
+      stop(
+        paste0(
+          "One or more values in `expected_recruitment_data$month` ",
+          "could not be interpreted. Expected format is e.g. `Jul-26`."
+        ),
+        call. = FALSE
+      )
+    }
+    
+    
+    # Get final day of each month
+    recruitment_plan$month_end <- as.Date(
+      vapply(
+        recruitment_plan$month_start,
+        function(x) {
+          
+          next_month <- seq(
+            as.Date(x),
+            by = "month",
+            length.out = 2
+          )[2]
+          
+          as.character(
+            next_month - 1
+          )
+          
+        },
+        character(1)
+      )
+    )
+    
+    
+    recruitment_plan <- recruitment_plan |>
+      dplyr::arrange(
+        .data$month_end
+      )
+    
+    
+    # Site-specific columns are everything except the overall recruitment
+    # trajectory and the date-helper columns.
+    site_columns <- setdiff(
+      names(recruitment_plan),
+      c(
+        "month",
+        "expected_recruitment",
+        "month_start",
+        "month_end"
+      )
+    )
+    
+    
+    if (length(site_columns) == 0L) {
+      stop(
+        paste0(
+          "`expected_recruitment_data` does not contain any ",
+          "site-specific recruitment columns."
+        ),
+        call. = FALSE
+      )
+    }
+    
+    
+    # Ensure site recruitment targets are numeric
+    recruitment_plan <- recruitment_plan |>
+      dplyr::mutate(
+        dplyr::across(
+          dplyr::all_of(site_columns),
+          ~ suppressWarnings(
+            as.numeric(
+              as.character(.x)
+            )
+          )
+        )
+      )
+    
+    
+    # Convert from wide to long:
+    #
+    # month_end | site | expected_recruitment
+    long_plan <- recruitment_plan |>
+      tidyr::pivot_longer(
+        cols = dplyr::all_of(site_columns),
+        names_to = "site",
+        values_to = "expected_recruitment"
+      )
+    
+    
+    # Calculate expected recruitment for each site independently
+    expected_by_site <- long_plan |>
+      dplyr::group_by(
+        .data$site
+      ) |>
+      dplyr::group_modify(
+        ~ {
+          
+          site_plan <- .x |>
+            dplyr::arrange(
+              .data$month_end
+            )
+          
+          
+          # ------------------------------------------------------
+          # Before recruitment plan begins
+          # ------------------------------------------------------
+          
+          if (
+            current_date <
+            site_plan$month_start[1]
+          ) {
+            
+            return(
+              data.frame(
+                expected_recruitment = 0
+              )
+            )
+            
+          }
+          
+          
+          # ------------------------------------------------------
+          # First month
+          #
+          # Interpolate between 0 at the start of the first month
+          # and the first month-end target.
+          # ------------------------------------------------------
+          
+          if (
+            current_date <=
+            site_plan$month_end[1]
+          ) {
+            
+            proportion_elapsed <-
+              as.numeric(
+                current_date -
+                  site_plan$month_start[1] +
+                  1
+              ) /
+              as.numeric(
+                site_plan$month_end[1] -
+                  site_plan$month_start[1] +
+                  1
+              )
+            
+            
+            expected_today <-
+              site_plan$expected_recruitment[1] *
+              proportion_elapsed
+            
+            
+            return(
+              data.frame(
+                expected_recruitment =
+                  expected_today
+              )
+            )
+            
+          }
+          
+          
+          # ------------------------------------------------------
+          # After final recruitment-plan month
+          # ------------------------------------------------------
+          
+          if (
+            current_date >=
+            max(
+              site_plan$month_end
+            )
+          ) {
+            
+            return(
+              data.frame(
+                expected_recruitment =
+                  site_plan$expected_recruitment[
+                    nrow(site_plan)
+                  ]
+              )
+            )
+            
+          }
+          
+          
+          # ------------------------------------------------------
+          # Current month
+          #
+          # Interpolate between previous and current month-end
+          # recruitment targets.
+          # ------------------------------------------------------
+          
+          current_row <- which(
+            site_plan$month_end >=
+              current_date
+          )[1]
+          
+          
+          previous_row <-
+            current_row - 1L
+          
+          
+          previous_date <-
+            site_plan$month_end[
+              previous_row
+            ]
+          
+          current_month_end <-
+            site_plan$month_end[
+              current_row
+            ]
+          
+          
+          previous_target <-
+            site_plan$expected_recruitment[
+              previous_row
+            ]
+          
+          current_target <-
+            site_plan$expected_recruitment[
+              current_row
+            ]
+          
+          
+          proportion_elapsed <-
+            as.numeric(
+              current_date -
+                previous_date
+            ) /
+            as.numeric(
+              current_month_end -
+                previous_date
+            )
+          
+          
+          expected_today <-
+            previous_target +
+            (
+              current_target -
+                previous_target
+            ) *
+            proportion_elapsed
+          
+          
+          data.frame(
+            expected_recruitment =
+              expected_today
+          )
+          
+        }
+      ) |>
+      dplyr::ungroup()
+    
+    
+    expected_by_site
+    
+  }
   
   if (!is.data.frame(kri_metadata)) {
     stop("`kri_metadata` must be a data frame.", call. = FALSE)
@@ -349,411 +642,272 @@ produce_kri_report <- function(
   # ==========================================================================
   
   if (kri_exists("recruitment_vs_expected")) {
-    meta_row <- get_meta_row("recruitment_vs_expected")
-    data <- get_dataset(meta_row)
-    lookup_data <- get_dataset(meta_row, "lookup_join_system_1")
     
-    event_name <- metadata_value(meta_row, "event_name")
-    field <- metadata_value(meta_row, "field")
-    source_site_col <- metadata_value(meta_row, "lookup_join_field_2")
-    lookup_site_col <- metadata_value(meta_row, "lookup_join_field_1")
-    target_col <- metadata_value(meta_row, "lookup_value_field_1")
-    
-    check_fields(
-      data,
-      c("redcap_event_name", field, source_site_col),
-      "recruitment_vs_expected"
-    )
-    check_fields(
-      lookup_data,
-      c(lookup_site_col, target_col),
+    meta_row <- get_meta_row(
       "recruitment_vs_expected"
     )
     
-    actual_recruitment <- data |>
-      dplyr::filter(.data$redcap_event_name == event_name) |>
-      dplyr::filter(is_populated(.data[[field]])) |>
-      dplyr::filter(is_populated(.data[[source_site_col]])) |>
-      dplyr::count(
-        site = .data[[source_site_col]],
-        name = "actual_recruited"
-      )
+    data <- get_dataset(
+      meta_row
+    )
     
-    expected_recruitment <- lookup_data |>
-      dplyr::filter(is_populated(.data[[lookup_site_col]])) |>
-      dplyr::transmute(
-        site = .data[[lookup_site_col]],
-        expected_recruitment =
-          suppressWarnings(as.numeric(.data[[target_col]]))
-      )
     
-    result <- expected_recruitment |>
-      dplyr::left_join(actual_recruitment, by = "site") |>
-      dplyr::mutate(
-        actual_recruited =
-          tidyr::replace_na(.data$actual_recruited, 0L),
-        kri_value = dplyr::if_else(
-          !is.na(.data$expected_recruitment) &
-            .data$expected_recruitment > 0,
-          .data$actual_recruited /
-            .data$expected_recruitment * 100,
-          NA_real_
-        )
-      )
-    
-    kri_results[["recruitment_vs_expected"]] <- prepare_result(
-      result,
+    event_name <- metadata_value(
       meta_row,
-      "kri_value",
-      "percentage"
-    )
-  }
-  
-  for (kri_id in c("identified_by_site", "screened_by_site")) {
-    if (!kri_exists(kri_id)) {
-      next
-    }
-    
-    meta_row <- get_meta_row(kri_id)
-    data <- get_dataset(meta_row)
-    field <- metadata_value(meta_row, "field")
-    
-    output_column <- if (
-      kri_id == "identified_by_site"
-    ) {
-      "identified_participants"
-    } else {
-      "screened_participants"
-    }
-    
-    check_fields(data, c(site_col, field), kri_id)
-    
-    all_sites <- get_all_sites(data)
-    
-    counts <- data |>
-      dplyr::filter(is_populated(.data[[field]])) |>
-      dplyr::filter(is_populated(.data[[site_col]])) |>
-      dplyr::count(
-        site = .data[[site_col]],
-        name = output_column
-      )
-    
-    result <- all_sites |>
-      dplyr::left_join(counts, by = "site")
-    
-    result[[output_column]] <- tidyr::replace_na(
-      result[[output_column]],
-      0L
+      "event_name"
     )
     
-    kri_results[[kri_id]] <- prepare_result(
-      result,
+    field <- metadata_value(
       meta_row,
-      output_column,
-      "integer"
-    )
-  }
-  
-  calculate_activation_to_first <- function(meta_row, first_date_name) {
-    data <- get_dataset(meta_row)
-    lookup_data <- get_dataset(meta_row, "lookup_join_system_1")
-    
-    source_site_col <- metadata_value(meta_row, "lookup_join_field_2")
-    lookup_site_col <- metadata_value(meta_row, "lookup_join_field_1")
-    activation_date_col <- metadata_value(meta_row, "lookup_value_field_1")
-    event_date_col <- metadata_value(meta_row, "date_end_field")
-    event_name <- metadata_value(meta_row, "event_name")
-    field <- metadata_value(meta_row, "field")
-    condition <- metadata_value(meta_row, "positive_condition")
-    kri_id <- metadata_value(meta_row, "kri_id")
-    
-    check_fields(
-      data,
-      c(source_site_col, event_date_col, split_metadata_value(field)),
-      kri_id
-    )
-    check_fields(
-      lookup_data,
-      c(lookup_site_col, activation_date_col),
-      kri_id
+      "field"
     )
     
-    event_data <- data
     
-    if (!is.na(event_name)) {
-      check_fields(data, "redcap_event_name", kri_id)
-      
-      event_data <- event_data |>
-        dplyr::filter(.data$redcap_event_name %in%
-                        split_metadata_value(event_name))
-    }
+    participant_id_col <-
+      names(data)[1]
     
-    event_data <- apply_condition(
-      event_data,
-      field,
-      condition
-    )
-    
-    first_event <- event_data |>
-      dplyr::filter(is_populated(.data[[source_site_col]])) |>
-      dplyr::mutate(
-        event_date = parse_date(.data[[event_date_col]])
-      ) |>
-      dplyr::filter(!is.na(.data$event_date)) |>
-      dplyr::group_by(site = .data[[source_site_col]]) |>
-      dplyr::summarise(
-        first_event_date = min(.data$event_date),
-        .groups = "drop"
-      )
-    
-    site_activation <- lookup_data |>
-      dplyr::filter(is_populated(.data[[lookup_site_col]])) |>
-      dplyr::transmute(
-        site = .data[[lookup_site_col]],
-        activation_date =
-          parse_date(.data[[activation_date_col]])
-      ) |>
-      dplyr::distinct(.data$site, .keep_all = TRUE)
-    
-    result <- site_activation |>
-      dplyr::left_join(first_event, by = "site") |>
-      dplyr::mutate(
-        kri_value = as.numeric(
-          .data$first_event_date - .data$activation_date
-        )
-      )
-    
-    names(result)[names(result) == "first_event_date"] <-
-      first_date_name
-    
-    result
-  }
-  
-  if (kri_exists("activation_to_first_recruitment")) {
-    meta_row <- get_meta_row("activation_to_first_recruitment")
-    result <- calculate_activation_to_first(
-      meta_row,
-      "first_recruitment_date"
-    )
-    
-    kri_results[["activation_to_first_recruitment"]] <-
-      prepare_result(result, meta_row, "kri_value", "integer")
-  }
-  
-  if (kri_exists("activation_to_first_screen")) {
-    meta_row <- get_meta_row("activation_to_first_screen")
-    result <- calculate_activation_to_first(
-      meta_row,
-      "first_screening_date"
-    )
-    
-    kri_results[["activation_to_first_screen"]] <-
-      prepare_result(result, meta_row, "kri_value", "integer")
-  }
-  
-  if (kri_exists("screen_failure_rate")) {
-    meta_row <- get_meta_row("screen_failure_rate")
-    data <- get_dataset(meta_row)
-    participant_id_col <- names(data)[1]
-    
-    field <- metadata_value(meta_row, "field")
-    numerator_condition <- metadata_value(
-      meta_row,
-      "positive_condition"
-    )
-    denominator_field <- metadata_value(
-      meta_row,
-      "denominator_field"
-    )
-    denominator_condition <- metadata_value(
-      meta_row,
-      "denominator_positive"
-    )
-    
-    check_fields(
-      data,
-      c(participant_id_col, site_col, field, denominator_field),
-      "screen_failure_rate"
-    )
-    
-    all_sites <- get_all_sites(data)
-    
-    denominator_data <- apply_condition(
-      data,
-      denominator_field,
-      denominator_condition
-    )
-    
-    denominator <- denominator_data |>
-      dplyr::filter(is_populated(.data[[site_col]])) |>
-      dplyr::distinct(
-        .data[[participant_id_col]],
-        .data[[site_col]]
-      ) |>
-      dplyr::count(
-        site = .data[[site_col]],
-        name = "denominator"
-      )
-    
-    numerator_data <- apply_condition(
-      denominator_data,
-      field,
-      numerator_condition
-    )
-    
-    numerator <- numerator_data |>
-      dplyr::filter(is_populated(.data[[site_col]])) |>
-      dplyr::distinct(
-        .data[[participant_id_col]],
-        .data[[site_col]]
-      ) |>
-      dplyr::count(
-        site = .data[[site_col]],
-        name = "screen_failures"
-      )
-    
-    result <- all_sites |>
-      dplyr::left_join(denominator, by = "site") |>
-      dplyr::left_join(numerator, by = "site") |>
-      dplyr::mutate(
-        denominator =
-          tidyr::replace_na(.data$denominator, 0L),
-        screen_failures =
-          tidyr::replace_na(.data$screen_failures, 0L),
-        kri_value = dplyr::if_else(
-          .data$denominator > 0,
-          .data$screen_failures /
-            .data$denominator * 100,
-          NA_real_
-        )
-      )
-    
-    kri_results[["screen_failure_rate"]] <- prepare_result(
-      result,
-      meta_row,
-      "kri_value",
-      "percentage"
-    )
-  }
-  
-  if (kri_exists("screening_to_randomisation_time")) {
-    meta_row <- get_meta_row("screening_to_randomisation_time")
-    data <- get_dataset(meta_row)
-    screening_data <- get_dataset(meta_row, "lookup_join_system_1")
-    
-    participant_id_col <- names(data)[1]
-    source_join_col <- metadata_value(meta_row, "lookup_join_field_2")
-    source_join_event <- metadata_value(meta_row, "lookup_join_event_2")
-    lookup_join_col <- metadata_value(meta_row, "lookup_join_field_1")
-    screening_date_col <- metadata_value(meta_row, "lookup_value_field_1")
-    randomisation_event <- metadata_value(meta_row, "event_name")
-    randomisation_date_col <- metadata_value(meta_row, "date_end_field")
-    randomisation_field <- metadata_value(meta_row, "field")
     
     check_fields(
       data,
       c(
-        participant_id_col, "redcap_event_name", source_join_col,
-        randomisation_date_col, randomisation_field, site_col
+        participant_id_col,
+        "redcap_event_name",
+        site_col,
+        field
       ),
-      "screening_to_randomisation_time"
-    )
-    check_fields(
-      screening_data,
-      c(lookup_join_col, screening_date_col),
-      "screening_to_randomisation_time"
+      "recruitment_vs_expected"
     )
     
-    id_lookup <- data |>
-      dplyr::filter(.data$redcap_event_name == source_join_event) |>
-      dplyr::filter(is_populated(.data[[source_join_col]])) |>
-      dplyr::transmute(
-        participant_id = .data[[participant_id_col]],
-        screening_id = .data[[source_join_col]],
-        site = .data[[site_col]]
-      ) |>
-      dplyr::distinct()
     
-    randomisation_dates <- data |>
+    # ------------------------------------------------------------------------
+    # Actual recruitment by site
+    #
+    # Count distinct recruited records rather than rows.
+    # ------------------------------------------------------------------------
+    
+    actual_recruitment <- data |>
       dplyr::filter(
-        .data$redcap_event_name == randomisation_event
+        .data$redcap_event_name ==
+          event_name
       ) |>
       dplyr::filter(
-        is_populated(.data[[randomisation_field]])
-      ) |>
-      dplyr::transmute(
-        participant_id = .data[[participant_id_col]],
-        randomisation_date =
-          parse_date(.data[[randomisation_date_col]])
-      ) |>
-      dplyr::filter(!is.na(.data$randomisation_date)) |>
-      dplyr::group_by(.data$participant_id) |>
-      dplyr::summarise(
-        randomisation_date =
-          min(.data$randomisation_date),
-        .groups = "drop"
-      )
-    
-    screening_dates <- screening_data |>
-      dplyr::filter(is_populated(.data[[lookup_join_col]])) |>
-      dplyr::transmute(
-        screening_id = .data[[lookup_join_col]],
-        screening_date =
-          parse_date(.data[[screening_date_col]])
-      ) |>
-      dplyr::filter(!is.na(.data$screening_date)) |>
-      dplyr::group_by(.data$screening_id) |>
-      dplyr::summarise(
-        screening_date = min(.data$screening_date),
-        .groups = "drop"
-      )
-    
-    result <- id_lookup |>
-      dplyr::inner_join(
-        randomisation_dates,
-        by = "participant_id"
-      ) |>
-      dplyr::inner_join(
-        screening_dates,
-        by = "screening_id"
-      ) |>
-      dplyr::filter(is_populated(.data$site)) |>
-      dplyr::mutate(
-        days_screening_to_randomisation = as.numeric(
-          .data$randomisation_date -
-            .data$screening_date
+        is_populated(
+          .data[[field]]
         )
       ) |>
-      dplyr::group_by(.data$site) |>
-      dplyr::summarise(
-        n_participants =
-          dplyr::n_distinct(.data$participant_id),
-        average_days = mean(
-          .data$days_screening_to_randomisation,
-          na.rm = TRUE
-        ),
-        median_days = stats::median(
-          .data$days_screening_to_randomisation,
-          na.rm = TRUE
-        ),
-        min_days = min(
-          .data$days_screening_to_randomisation,
-          na.rm = TRUE
-        ),
-        max_days = max(
-          .data$days_screening_to_randomisation,
-          na.rm = TRUE
-        ),
-        .groups = "drop"
+      dplyr::filter(
+        is_populated(
+          .data[[site_col]]
+        )
+      ) |>
+      dplyr::distinct(
+        .data[[participant_id_col]],
+        site = .data[[site_col]]
+      ) |>
+      dplyr::count(
+        .data$site,
+        name = "actual_recruited"
       )
     
-    kri_results[["screening_to_randomisation_time"]] <-
+    
+    # ------------------------------------------------------------------------
+    # Get expected recruitment at each site as of today
+    # ------------------------------------------------------------------------
+    
+    if (
+      !exists(
+        "expected_recruitment_data",
+        envir = data_environment,
+        inherits = TRUE
+      )
+    ) {
+      
+      stop(
+        paste0(
+          "`expected_recruitment_data` could not be found. ",
+          "This dataset is required for `recruitment_vs_expected`."
+        ),
+        call. = FALSE
+      )
+      
+    }
+    
+    
+    expected_data <- get(
+      "expected_recruitment_data",
+      envir = data_environment,
+      inherits = TRUE
+    )
+    
+    
+    expected_recruitment <-
+      get_expected_recruitment_by_site(
+        expected_recruitment_data =
+          expected_data,
+        current_date =
+          Sys.Date()
+      )
+    
+    
+    # ------------------------------------------------------------------------
+    # Match expected-recruitment site column names to REDCap DAG/site names.
+    #
+    # Normalising the names allows, for example:
+    #
+    # "01 - Site 1"
+    #
+    # to match an R column that may have been imported as:
+    #
+    # "X01...Site.1"
+    # ------------------------------------------------------------------------
+    
+    normalise_site <- function(x) {
+      
+      x <- tolower(
+        as.character(x)
+      )
+      
+      x <- gsub(
+        "^x(?=[0-9])",
+        "",
+        x,
+        perl = TRUE
+      )
+      
+      gsub(
+        "[^a-z0-9]",
+        "",
+        x
+      )
+      
+    }
+    
+    
+    actual_recruitment <- actual_recruitment |>
+      dplyr::mutate(
+        site_match =
+          normalise_site(
+            .data$site
+          )
+      )
+    
+    
+    expected_recruitment <-
+      expected_recruitment |>
+      dplyr::mutate(
+        site_match =
+          normalise_site(
+            .data$site
+          )
+      )
+    
+    
+    # Check for duplicate normalised site names
+    duplicate_expected_sites <-
+      expected_recruitment |>
+      dplyr::count(
+        .data$site_match
+      ) |>
+      dplyr::filter(
+        .data$n > 1
+      )
+    
+    
+    if (
+      nrow(
+        duplicate_expected_sites
+      ) > 0L
+    ) {
+      
+      stop(
+        paste0(
+          "More than one column in `expected_recruitment_data` ",
+          "maps to the same site after site-name normalisation."
+        ),
+        call. = FALSE
+      )
+      
+    }
+    
+    
+    # ------------------------------------------------------------------------
+    # Combine actual and expected recruitment
+    # ------------------------------------------------------------------------
+    
+    result <- expected_recruitment |>
+      dplyr::select(
+        expected_site = .data$site,
+        .data$site_match,
+        .data$expected_recruitment
+      ) |>
+      dplyr::full_join(
+        actual_recruitment |>
+          dplyr::select(
+            site = .data$site,
+            .data$site_match,
+            .data$actual_recruited
+          ),
+        by = "site_match"
+      ) |>
+      dplyr::mutate(
+        
+        # Prefer the REDCap site name for reporting
+        site = dplyr::coalesce(
+          .data$site,
+          .data$expected_site
+        ),
+        
+        actual_recruited =
+          tidyr::replace_na(
+            .data$actual_recruited,
+            0L
+          ),
+        
+        kri_value =
+          dplyr::case_when(
+            
+            !is.na(
+              .data$expected_recruitment
+            ) &
+              .data$expected_recruitment > 0 ~
+              .data$actual_recruited /
+              .data$expected_recruitment *
+              100,
+            
+            !is.na(
+              .data$expected_recruitment
+            ) &
+              .data$expected_recruitment == 0 &
+              .data$actual_recruited > 0 ~
+              100,
+            
+            !is.na(
+              .data$expected_recruitment
+            ) &
+              .data$expected_recruitment == 0 &
+              .data$actual_recruited == 0 ~
+              100,
+            
+            TRUE ~
+              NA_real_
+          )
+      ) |>
+      dplyr::select(
+        .data$site,
+        .data$actual_recruited,
+        .data$expected_recruitment,
+        .data$kri_value
+      )
+    
+    
+    kri_results[["recruitment_vs_expected"]] <-
       prepare_result(
         result,
         meta_row,
-        "average_days",
-        "decimal"
+        "kri_value",
+        "percentage"
       )
+    
   }
   
   # ==========================================================================

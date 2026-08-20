@@ -16,20 +16,25 @@ columns include:
 \item{amber_band}{Amber RAG threshold}
 \item{red_band}{Red RAG threshold}
 \item{field}{Field or fields used in the numerator calculation. Multiple
-fields should be separated by \code{";"}}
+fields may be separated by \code{";"}, where supported.}
 \item{event_name}{REDCap event used for the numerator calculation}
 \item{export_name}{Name of the source dataset object}
 \item{positive_condition}{Condition defining a positive QTL event}
 \item{negative_condition}{Condition defining a negative QTL event}
 \item{further_condition}{Additional QTL-specific information, such as
 recruitment target or denominator notes}
-\item{conditional_event}{REDCap event used to define the denominator,
-where applicable}
-\item{conditional_field}{Field used to define the denominator or
-participant identifier, where applicable}
-\item{conditional_logic}{Logic used to define the denominator, where
-applicable}
+\item{conditional_event}{Optional single REDCap event used to define an
+eligible population or denominator}
+\item{conditional_field}{Optional field or fields used to define the
+eligible population. Multiple fields should be separated by
+\code{";"}.}
+\item{conditional_logic}{Optional conditions corresponding to
+\code{conditional_field}. Multiple conditions should be separated by
+\code{";"}. Supported operators are \code{=}, \code{==}, \code{!=},
+\code{>}, \code{>=}, \code{<}, and \code{<=}.}
 }}
+
+\item{output_file}{Optional path for an Excel output file.}
 
 \item{env}{Environment in which source datasets named in \code{export_name}
 can be found. Defaults to \code{parent.frame()}.}
@@ -47,8 +52,8 @@ A data frame containing:
 Calculates Quality Tolerance Limit (QTL) values using a metadata-driven
 specification. Each row of the metadata dataset defines one QTL to be
 evaluated, including the QTL identifier, source dataset, REDCap event,
-field(s), positive condition, conditional denominator logic, and RAG
-threshold bands.
+field(s), positive condition, optional conditional denominator logic,
+and RAG threshold bands.
 }
 \details{
 The function currently supports the following QTL identifiers:
@@ -66,7 +71,7 @@ metadata dataset. Therefore, the metadata may contain all supported QTLs or
 only a subset of QTLs relevant to a specific study or monitoring report.
 
 The \code{"timely_recruitment"} QTL must be present where other QTLs require
-the total number of recruited participants as their denominator, including:
+the total recruitment count as their denominator, including:
 \itemize{
 \item \code{"participant_retention"}
 \item \code{"total_saes"}
@@ -75,6 +80,25 @@ the total number of recruited participants as their denominator, including:
 
 Source datasets are identified from the \code{export_name} column in the
 metadata. The named datasets must exist in the supplied environment.
+
+Conditional filtering is optional. Where no conditional filtering is
+required, \code{conditional_event}, \code{conditional_field}, and
+\code{conditional_logic} should all be blank.
+
+Where conditional filtering is required, all three columns must be supplied.
+Multiple conditional fields and corresponding conditions may be separated
+using semicolons. All conditions are combined using AND logic.
+
+For example:
+
+\code{conditional_event = "week_22_arm_1"}
+
+\code{conditional_field = "hooccuryn; primary_carer"}
+
+\code{conditional_logic = "=1; =1"}
+
+requires both \code{hooccuryn == 1} and \code{primary_carer == 1} at the
+\code{week_22_arm_1} event.
 }
 \examples{
 qtl_results <- run_qtl_monitoring(

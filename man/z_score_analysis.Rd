@@ -40,12 +40,17 @@ A list containing:
 \itemize{
 \item \code{z_scores}: all calculated Z-scores
 \item \code{z_flags}: meaningful moderate/large Z-score flags
+\item \code{excluded_variables}: eligible metadata variables excluded because
+they were absent from the dataset or were not numeric
 }
 }
 \description{
 This function calculates site-level Z-scores for required continuous and
-derived variables. Z-scores compare each site's mean with the overall study
-mean, standardised by the overall standard deviation.
+derived numeric variables. Z-scores compare each site's mean with the overall
+study mean, standardised by the overall standard deviation.
+}
+\details{
+Non-numeric variables, including Date variables, are excluded automatically.
 }
 \examples{
 z_score_outputs <- z_score_analysis(data, metadata)

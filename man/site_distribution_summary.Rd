@@ -24,7 +24,8 @@ site_distribution_summary(
 
 \item{field_name_column}{Column name in metadata containing REDCap field names.}
 
-\item{site_column}{Column name in dataset representing site/group (default = redcap_data_access_group).}
+\item{site_column}{Column name in dataset representing site/group
+(default = redcap_data_access_group).}
 }
 \value{
 A dataframe containing summary statistics by site and variable.
@@ -32,6 +33,10 @@ A dataframe containing summary statistics by site and variable.
 \description{
 This function identifies required continuous and derived variables from the
 metadata and calculates descriptive statistics by site (REDCap data access group).
+}
+\details{
+Variables selected for summary are coerced to numeric before descriptive
+statistics are calculated. Missing values are retained as NA.
 }
 \examples{
 site_summary <- site_distribution_summary(data, metadata)

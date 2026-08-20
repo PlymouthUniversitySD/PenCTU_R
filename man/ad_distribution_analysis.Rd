@@ -43,12 +43,18 @@ A list containing:
 \itemize{
 \item \code{ad_results}: all Anderson-Darling test results
 \item \code{ad_flags}: results with p-value below threshold
+\item \code{skipped_tests}: tests that could not be run and the reason
+\item \code{excluded_variables}: metadata variables excluded because they
+were absent from the dataset or were not numeric
 }
 }
 \description{
 This function compares each site's distribution with the rest of the study
-population for required continuous and derived variables using the
+population for required continuous and derived numeric variables using the
 Anderson-Darling test.
+}
+\details{
+Non-numeric variables, including Date variables, are excluded automatically.
 }
 \examples{
 ad_outputs <- ad_distribution_analysis(data, metadata)
