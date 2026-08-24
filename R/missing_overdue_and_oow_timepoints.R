@@ -54,8 +54,7 @@
 #' missing_overdue_and_oow_timepoints(data, metadata)
 #'
 #' @export
-#' study_CSM_Missing_Overdue_and_OOW_Timepoints_YYYY-MM-YY.xlsx
-#'
+
 #FUNCTION-------------------------------------------------------------------------------------------------------------------------------------
 # Define the function "missing_overdue_and_oow_timepoints" using parameters "data" and "metadata"
 missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, include_split_CSVs = FALSE, simplify_ID = FALSE, simplify_event_date = FALSE, id_number_delimiter = "-", id_number_position = "last") {
