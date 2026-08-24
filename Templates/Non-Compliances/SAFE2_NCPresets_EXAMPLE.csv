@@ -1,0 +1,12 @@
+﻿nc_trigger_field,nc_notes_field,nc_dm_field,timepoint,system,nc_description,category
+nc_trigger_1,warn_text,dm_nc_log_1,week_22_followup_arm_1,families,Week 22 timepoint occurred outside of allowed visit window.,Timings/Visit
+nc_trigger_1,warn_text,dm_nc_log_1,week_52_followup_arm_1,families,Week 52 timepoint occurred outside of allowed visit window.,Timings/Visit
+nc_trigger_2,warn_text_2,dm_nc_log_2,safety_reporting_arm_1,participants,Safety event reported more than 1 days after site awareness.,Other
+nc_trigger_3,warn_text_3,dm_nc_log_3,baseline_arm_1,participants,Data entry for baseline event completed more than 7 days after timepoint tool place.,Timings/Visit
+nc_trigger_3,warn_text_3,dm_nc_log_3,week_22_arm_1,participants,Data entry for baseline event completed more than 7 days after timepoint tool place.,Timings/Visit
+nc_trigger_3,warn_text_3,dm_nc_log_3,week_52_arm_1,participants,Data entry for baseline event completed more than 7 days after timepoint tool place.,Timings/Visit
+nc_trigger_4,hoalldataft,dm_nc_log_4,baseline_arm_1,participants,Baseline data collection was incomplete.,Endpoint data
+nc_trigger_4,hoalldataft,dm_nc_log_4,week_22_arm_1,participants,Baseline data collection was incomplete.,Endpoint data
+nc_trigger_4,hoalldataft,dm_nc_log_4,week_52_arm_1,participants,Baseline data collection was incomplete.,Endpoint data
+nc_trigger_5,warn_text_5,dm_nc_log_5,safety_reporting_arm_1,participants,PI Opinion Form completed more than 3 days after safety event was reported.,Other
+nc_trigger_6,warn_text_6,dm_nc_log_6,safety_reporting_arm_1,participants,CI Opinion Form completed more than 3 days after safety event was reported.,Other
