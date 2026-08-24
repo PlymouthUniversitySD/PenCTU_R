@@ -1,6 +1,6 @@
 #Title: Central Statistical Monitoring - Missing, Overdue, and Out-Of-Window Timepoints Data Function
 #Author: Eduard Mazuru
-#Version & Date: V1.5.0 20AUG2026
+#Version & Date: V1.6.0 24AUG2026
 #R version: 4.4.3
 #' Exports '.xlsx' excel workbook with sheets corresponding to study-wide required event timepoints that are:
 #' missing - and the days overdue, out-of-window, in-window, or excluded.
@@ -14,6 +14,10 @@
 #' site's own participant count, so sites of very different sizes don't waste space), and the y-axis
 #' is labelled with just each site's short prefix (e.g. "01", "02"), matching the site/DAG already
 #' used throughout the rest of the workbook.
+#'
+#' Baseline "occurred" status is inferred directly from whether the baseline date field is populated,
+#' rather than from a separate baseline-occurred yes/no field - the metadata dataframe no longer needs
+#' a \code{baseline_occurred_field_name} column for this function to run.
 #'
 #' @param data A REDCap export dataset.
 #' @param metadata A critical data item metadata dataframe.
@@ -54,7 +58,6 @@
 #' missing_overdue_and_oow_timepoints(data, metadata)
 #'
 #' @export
-
 #FUNCTION-------------------------------------------------------------------------------------------------------------------------------------
 # Define the function "missing_overdue_and_oow_timepoints" using parameters "data" and "metadata"
 missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, include_split_CSVs = FALSE, simplify_ID = FALSE, simplify_event_date = FALSE, id_number_delimiter = "-", id_number_position = "last") {
@@ -106,19 +109,19 @@ missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, 
   #Defining character vectors to store field names pulled from the metadata file.
   field_timepoint_yn <- metadata$timepoint_occurred_field_name
   field_timepoint_date <- metadata$timepoint_date_field_name
-  field_baseline_yn <- metadata$baseline_occurred_field_name
   field_baseline_date <- metadata$baseline_date_field_name
   
   #Grouping fields into new variables for ease of use.
   
-  #Defining a variable to store all fields that store information on whether or not a timepoint occurred
-  events_occurredyn_fields <- append(field_baseline_yn,field_timepoint_yn)
+  #Defining a variable to store all fields that store information on whether or not a timepoint occurred.
+  #Baseline "occurred" status is no longer tracked via a separate yes/no field - it's inferred directly
+  #from whether the baseline date field is populated (see Section 4 and Section 5).
+  events_occurredyn_fields <- field_timepoint_yn
   
   #Defining a variable to store all required fields
   required_fields <- unique(c(record_ids,
                               "redcap_event_name",
                               "redcap_data_access_group",
-                              field_baseline_yn,
                               field_baseline_date,
                               field_timepoint_yn,
                               field_timepoint_date
@@ -136,9 +139,10 @@ missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, 
       redcap_event_name %in% events_include_bl,
       #Filter to remove forms with repeated visit instances.
       is.na(redcap_repeat_instance),
-      #Filter to exclude timepoints that have not occurred.
-      #This line could have been used if there was only 1 field -> .data[[field_timepoint_yn]] == 1
-      if_any(all_of(events_occurredyn_fields), ~ .x == 1)
+      #Keep rows where a timepoint was marked as occurred, OR a baseline date has been recorded
+      #(baseline "occurred" is inferred from the date field being populated, not a yes/no field).
+      if_any(all_of(events_occurredyn_fields), ~ .x == 1) |
+        if_any(all_of(field_baseline_date), ~ !is.na(.x))
     ) %>%
     #Select columns to only show required variables for function.
     dplyr::select(all_of(required_fields))

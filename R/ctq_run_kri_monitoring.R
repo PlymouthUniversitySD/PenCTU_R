@@ -1,9 +1,7 @@
 # Title: Produce Key Risk Indicator Report
 # Author: Paigan Aspinall
-# Version & Date: V1.0.0 13JUL2026
+# Version & Date: V2.0.0 24AUG2026
 # R version: 4.4.3
-
-
 #' Produce a Key Risk Indicator Report
 #'
 #' Calculates site-level Key Risk Indicators using study-specific metadata and
@@ -12,11 +10,31 @@
 #' Only KRIs included in the supplied metadata are calculated. Worksheets are
 #' created only for KRI categories containing at least one calculated result.
 #'
+#' \code{kri_metadata} may contain more than one row for the same
+#' \code{kri_id} - for example, to report a family-level and an
+#' individual-level variant of the same underlying KRI (such as
+#' \code{number_withdrawn} or \code{number_partial}). Each row is calculated
+#' and displayed as its own section, using that row's own
+#' \code{kri_description} as the section title.
+#'
+#' Some KRIs (\code{activation_to_first_recruitment},
+#' \code{activation_to_first_screen}) require a site-level lookup dataset
+#' (e.g. a "locations" dataset giving each site's activation date) to be
+#' available in \code{data_environment}, in addition to the dataset named in
+#' \code{export_name}. The lookup dataset is named in
+#' \code{lookup_join_system_1}, joined to the main dataset via
+#' \code{lookup_join_field_1} (on the lookup dataset) and
+#' \code{lookup_join_field_2} (on the main dataset), reading the date from
+#' \code{lookup_value_field_1}. Site names are matched between the two
+#' datasets after normalisation (lower-cased, non-alphanumeric characters
+#' removed), so minor formatting differences between systems (e.g.
+#' \code{"01 - Site 1"} vs \code{"X01...Site.1"}) do not prevent a match.
+#'
 #' Each worksheet contains:
 #'
 #' \itemize{
 #'   \item A category heading
-#'   \item One section per KRI
+#'   \item One section per KRI (per metadata row)
 #'   \item Site names displayed horizontally
 #'   \item The calculated value for each site
 #' }
@@ -39,7 +57,6 @@
 #' )
 #'
 #' @export
-
 produce_kri_report <- function(
     kri_metadata,
     output_file,
@@ -167,7 +184,14 @@ produce_kri_report <- function(
     # Convert from wide to long:
     #
     # month_end | site | expected_recruitment
+    #
+    # The overall/study-wide `expected_recruitment` column is dropped first -
+    # it isn't one of the per-site columns being pivoted, but pivot_longer()
+    # also creates a NEW column of that same name (via values_to), which
+    # collides with the original column if it's still present. It isn't
+    # used anywhere after this point, so it's safe to drop.
     long_plan <- recruitment_plan |>
+      dplyr::select(-dplyr::any_of("expected_recruitment")) |>
       tidyr::pivot_longer(
         cols = dplyr::all_of(site_columns),
         names_to = "site",
@@ -381,6 +405,14 @@ produce_kri_report <- function(
     )
   }
   
+  # Tag every metadata row with its own row number. This is what allows the
+  # same kri_id to appear more than once in kri_metadata (e.g. a family-level
+  # and an individual-level variant of the same KRI) - each row gets its own
+  # unique result key (kri_id + row number) rather than results being keyed
+  # on kri_id alone, which would silently collide.
+  kri_metadata <- kri_metadata |>
+    dplyr::mutate(.kri_row_id = dplyr::row_number())
+  
   site_col <- "redcap_data_access_group"
   
   metadata_value <- function(meta_row, column_name) {
@@ -408,6 +440,18 @@ produce_kri_report <- function(
   
   is_populated <- function(x) {
     !is.na(x) & trimws(as.character(x)) != ""
+  }
+  
+  # Normalises a site/DAG label for matching across two different systems
+  # (e.g. a REDCap export's redcap_data_access_group vs a separate site
+  # lookup dataset), where the same site can be formatted differently -
+  # e.g. "01 - Site 1" vs "X01...Site.1". Lower-cases, strips a leading
+  # REDCap-style "X" placed before a leading digit, then removes everything
+  # that isn't a letter or digit.
+  normalise_site <- function(x) {
+    x <- tolower(as.character(x))
+    x <- gsub("^x(?=[0-9])", "", x, perl = TRUE)
+    gsub("[^a-z0-9]", "", x)
   }
   
   kri_exists <- function(kri_id) {
@@ -439,6 +483,23 @@ produce_kri_report <- function(
     }
     
     meta_row
+  }
+  
+  # Like get_meta_row(), but returns EVERY row for this kri_id instead of
+  # warning and keeping only the first. Used wherever a kri_id is allowed to
+  # appear more than once in the metadata.
+  get_meta_rows <- function(kri_id) {
+    meta_rows <- kri_metadata[
+      kri_metadata$kri_id == kri_id,
+      ,
+      drop = FALSE
+    ]
+    
+    if (nrow(meta_rows) == 0L) {
+      return(NULL)
+    }
+    
+    meta_rows
   }
   
   get_dataset <- function(meta_row, metadata_column = "export_name") {
@@ -515,6 +576,17 @@ produce_kri_report <- function(
     x <- trimws(as.character(x))
     x[x == ""] <- NA_character_
     suppressWarnings(as.Date(x))
+  }
+  
+  # Returns the first non-NA value in a vector, or NA if every value is
+  # missing. Used to pull a date for a participant from whichever of their
+  # rows/events actually has it populated.
+  first_non_na <- function(x) {
+    x <- x[!is.na(x)]
+    if (length(x) == 0L) {
+      return(NA)
+    }
+    x[[1]]
   }
   
   get_all_sites <- function(data) {
@@ -617,8 +689,20 @@ produce_kri_report <- function(
     value_column,
     display_type = "integer"
   ) {
+    row_number <- meta_row$.kri_row_id[[1]]
+    
     result |>
       dplyr::mutate(
+        # kri_result_id is the unique key for this metadata ROW (not just
+        # this kri_id), so two rows sharing a kri_id - e.g. a family-level
+        # and an individual-level variant - each get their own section
+        # rather than overwriting each other.
+        kri_result_id = paste0(
+          metadata_value(meta_row, "kri_id"),
+          "__row",
+          row_number
+        ),
+        kri_row_number = row_number,
         kri_id = metadata_value(meta_row, "kri_id"),
         kri_category = metadata_value(meta_row, "kri_category"),
         kri_name = metadata_value(meta_row, "kri_description"),
@@ -626,6 +710,8 @@ produce_kri_report <- function(
         display_type = display_type
       ) |>
       dplyr::relocate(
+        kri_result_id,
+        kri_row_number,
         kri_id,
         kri_category,
         kri_name,
@@ -633,6 +719,193 @@ produce_kri_report <- function(
         display_value,
         display_type
       )
+  }
+  
+  # --------------------------------------------------------------------------
+  # Shared calculation: distinct count of participants/records meeting a
+  # single field/positive_condition, at a single event, by site.
+  #
+  # Used for simple headcount KRIs such as identified_by_site,
+  # screened_by_site, and the participant-retention KRIs (number_withdrawn,
+  # number_dropout, number_lost, number_partial).
+  # --------------------------------------------------------------------------
+  calculate_distinct_count_result <- function(meta_row, output_column) {
+    data <- get_dataset(meta_row)
+    kri_id <- metadata_value(meta_row, "kri_id")
+    participant_id_col <- names(data)[1]
+    
+    event_name <- metadata_value(meta_row, "event_name")
+    field <- metadata_value(meta_row, "field")
+    condition <- metadata_value(meta_row, "positive_condition")
+    
+    check_fields(
+      data,
+      c(
+        participant_id_col, "redcap_event_name", site_col,
+        split_metadata_value(field)
+      ),
+      kri_id
+    )
+    
+    all_sites <- get_all_sites(data)
+    
+    selected_data <- data |>
+      dplyr::filter(.data$redcap_event_name == event_name)
+    
+    selected_data <- apply_condition(selected_data, field, condition)
+    
+    counts <- selected_data |>
+      dplyr::filter(is_populated(.data[[site_col]])) |>
+      dplyr::distinct(
+        .data[[participant_id_col]],
+        .data[[site_col]]
+      ) |>
+      dplyr::count(
+        site = .data[[site_col]],
+        name = output_column
+      )
+    
+    result <- all_sites |>
+      dplyr::left_join(counts, by = "site")
+    
+    result[[output_column]] <- tidyr::replace_na(
+      result[[output_column]],
+      0L
+    )
+    
+    result
+  }
+  
+  # --------------------------------------------------------------------------
+  # Site-level activation-date lookup (e.g. from a "locations" dataset), for
+  # KRIs measuring time from site activation to a first study milestone.
+  #
+  # Reads lookup_join_field_1 / lookup_join_event_1 / lookup_join_system_1 /
+  # lookup_value_field_1 from the metadata row. lookup_join_event_1 may be
+  # NA, in which case the lookup dataset is used as-is with no event filter
+  # (appropriate for a non-longitudinal, one-row-per-site dataset).
+  # --------------------------------------------------------------------------
+  get_site_activation_dates <- function(meta_row) {
+    lookup_dataset <- get_dataset(meta_row, "lookup_join_system_1")
+    kri_id <- metadata_value(meta_row, "kri_id")
+    
+    lookup_join_field <- metadata_value(meta_row, "lookup_join_field_1")
+    lookup_join_event <- metadata_value(meta_row, "lookup_join_event_1")
+    lookup_value_field <- metadata_value(meta_row, "lookup_value_field_1")
+    
+    if (is.na(lookup_join_field) || is.na(lookup_value_field)) {
+      stop(
+        paste0(
+          "`lookup_join_field_1` and `lookup_value_field_1` are both ",
+          "required for KRI `", kri_id, "`."
+        ),
+        call. = FALSE
+      )
+    }
+    
+    check_fields(
+      lookup_dataset,
+      c(lookup_join_field, lookup_value_field),
+      kri_id
+    )
+    
+    if (!is.na(lookup_join_event)) {
+      check_fields(lookup_dataset, "redcap_event_name", kri_id)
+      
+      lookup_dataset <- lookup_dataset |>
+        dplyr::filter(.data$redcap_event_name == lookup_join_event)
+    }
+    
+    activation_dates <- lookup_dataset |>
+      dplyr::filter(is_populated(.data[[lookup_join_field]])) |>
+      dplyr::transmute(
+        site = .data[[lookup_join_field]],
+        activation_date = parse_date(.data[[lookup_value_field]])
+      ) |>
+      dplyr::filter(!is.na(.data$activation_date)) |>
+      dplyr::mutate(site_match = normalise_site(.data$site)) |>
+      dplyr::distinct()
+    
+    duplicate_sites <- activation_dates |>
+      dplyr::count(.data$site_match) |>
+      dplyr::filter(.data$n > 1)
+    
+    if (nrow(duplicate_sites) > 0L) {
+      stop(
+        paste0(
+          "More than one row in the site-activation-date lookup maps to ",
+          "the same site after site-name normalisation, for KRI `",
+          kri_id, "`."
+        ),
+        call. = FALSE
+      )
+    }
+    
+    activation_dates
+  }
+  
+  # --------------------------------------------------------------------------
+  # Time from site activation to the first qualifying record at that site
+  # (e.g. first participant recruited, first participant screened).
+  #
+  # Eligibility is defined by event_name/field/positive_condition in the
+  # main dataset (export_name); the earliest date_end_field value per site
+  # is compared against that site's activation date from
+  # get_site_activation_dates().
+  # --------------------------------------------------------------------------
+  calculate_activation_time_result <- function(meta_row) {
+    data <- get_dataset(meta_row)
+    kri_id <- metadata_value(meta_row, "kri_id")
+    
+    event_name <- metadata_value(meta_row, "event_name")
+    field <- metadata_value(meta_row, "field")
+    condition <- metadata_value(meta_row, "positive_condition")
+    date_end_col <- metadata_value(meta_row, "date_end_field")
+    
+    join_field_2 <- metadata_value(meta_row, "lookup_join_field_2")
+    if (is.na(join_field_2)) {
+      join_field_2 <- site_col
+    }
+    
+    check_fields(
+      data,
+      c(
+        "redcap_event_name", join_field_2,
+        split_metadata_value(field), date_end_col
+      ),
+      kri_id
+    )
+    
+    eligible <- data |>
+      dplyr::filter(.data$redcap_event_name == event_name)
+    
+    eligible <- apply_condition(eligible, field, condition)
+    
+    first_dates <- eligible |>
+      dplyr::filter(is_populated(.data[[join_field_2]])) |>
+      dplyr::mutate(event_date = parse_date(.data[[date_end_col]])) |>
+      dplyr::filter(!is.na(.data$event_date)) |>
+      dplyr::group_by(site = .data[[join_field_2]]) |>
+      dplyr::summarise(
+        first_event_date = min(.data$event_date, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    activation_dates <- get_site_activation_dates(meta_row)
+    
+    all_sites <- get_all_sites(data)
+    
+    all_sites |>
+      dplyr::left_join(first_dates, by = "site") |>
+      dplyr::mutate(site_match = normalise_site(.data$site)) |>
+      dplyr::left_join(
+        dplyr::select(activation_dates, site_match, activation_date),
+        by = "site_match"
+      ) |>
+      dplyr::mutate(
+        kri_value = as.numeric(.data$first_event_date - .data$activation_date)
+      ) |>
+      dplyr::select(site, first_event_date, activation_date, kri_value)
   }
   
   kri_results <- list()
@@ -761,28 +1034,6 @@ produce_kri_report <- function(
     # "X01...Site.1"
     # ------------------------------------------------------------------------
     
-    normalise_site <- function(x) {
-      
-      x <- tolower(
-        as.character(x)
-      )
-      
-      x <- gsub(
-        "^x(?=[0-9])",
-        "",
-        x,
-        perl = TRUE
-      )
-      
-      gsub(
-        "[^a-z0-9]",
-        "",
-        x
-      )
-      
-    }
-    
-    
     actual_recruitment <- actual_recruitment |>
       dplyr::mutate(
         site_match =
@@ -910,6 +1161,250 @@ produce_kri_report <- function(
     
   }
   
+  # --------------------------------------------------------------------------
+  # Simple site headcounts: identified_by_site, screened_by_site.
+  #
+  # A distinct count of records/participants meeting a single field's
+  # positive_condition, at a single event, by site.
+  # --------------------------------------------------------------------------
+  
+  identification_map <- c(
+    identified_by_site = "families_identified",
+    screened_by_site = "participants_screened"
+  )
+  
+  for (kri_id in names(identification_map)) {
+    if (!kri_exists(kri_id)) {
+      next
+    }
+    
+    meta_rows <- get_meta_rows(kri_id)
+    output_column <- identification_map[[kri_id]]
+    
+    for (row_index in seq_len(nrow(meta_rows))) {
+      meta_row <- meta_rows[row_index, , drop = FALSE]
+      
+      result <- calculate_distinct_count_result(meta_row, output_column)
+      
+      result_id <- paste0(kri_id, "__row", meta_row$.kri_row_id[[1]])
+      
+      kri_results[[result_id]] <- prepare_result(
+        result,
+        meta_row,
+        output_column,
+        "integer"
+      )
+    }
+  }
+  
+  # --------------------------------------------------------------------------
+  # Screen failure rate: % of screened records failing eligibility.
+  #
+  # Denominator is defined by denominator_field/denominator_positive (all
+  # records with an eligibility outcome recorded); numerator is the subset
+  # of those meeting field/positive_condition (screen failed).
+  # --------------------------------------------------------------------------
+  
+  if (kri_exists("screen_failure_rate")) {
+    meta_row <- get_meta_row("screen_failure_rate")
+    data <- get_dataset(meta_row)
+    participant_id_col <- names(data)[1]
+    
+    event_name <- metadata_value(meta_row, "event_name")
+    field <- metadata_value(meta_row, "field")
+    condition <- metadata_value(meta_row, "positive_condition")
+    denominator_field <- metadata_value(meta_row, "denominator_field")
+    denominator_condition <- metadata_value(meta_row, "denominator_positive")
+    
+    check_fields(
+      data,
+      c(
+        participant_id_col, "redcap_event_name", site_col,
+        split_metadata_value(field), split_metadata_value(denominator_field)
+      ),
+      "screen_failure_rate"
+    )
+    
+    all_sites <- get_all_sites(data)
+    
+    denominator_data <- data |>
+      dplyr::filter(.data$redcap_event_name == event_name)
+    
+    denominator_data <- apply_condition(
+      denominator_data,
+      denominator_field,
+      denominator_condition
+    )
+    
+    denominator <- denominator_data |>
+      dplyr::filter(is_populated(.data[[site_col]])) |>
+      dplyr::distinct(
+        .data[[participant_id_col]],
+        .data[[site_col]]
+      ) |>
+      dplyr::count(
+        site = .data[[site_col]],
+        name = "screened_denominator"
+      )
+    
+    failed <- apply_condition(denominator_data, field, condition) |>
+      dplyr::filter(is_populated(.data[[site_col]])) |>
+      dplyr::distinct(
+        .data[[participant_id_col]],
+        .data[[site_col]]
+      ) |>
+      dplyr::count(
+        site = .data[[site_col]],
+        name = "screen_failures"
+      )
+    
+    result <- all_sites |>
+      dplyr::left_join(denominator, by = "site") |>
+      dplyr::left_join(failed, by = "site") |>
+      dplyr::mutate(
+        screened_denominator =
+          tidyr::replace_na(.data$screened_denominator, 0L),
+        screen_failures =
+          tidyr::replace_na(.data$screen_failures, 0L),
+        kri_value = dplyr::if_else(
+          .data$screened_denominator > 0,
+          .data$screen_failures /
+            .data$screened_denominator * 100,
+          NA_real_
+        )
+      )
+    
+    kri_results[["screen_failure_rate"]] <- prepare_result(
+      result,
+      meta_row,
+      "kri_value",
+      "percentage"
+    )
+  }
+  
+  # --------------------------------------------------------------------------
+  # Average time from screening to randomisation.
+  #
+  # date_start_field (screening date) and date_end_field (randomisation
+  # date) are typically recorded on different REDCap events for the same
+  # participant, so each is pulled from whichever of that participant's
+  # rows actually has it populated - not just the row matching event_name,
+  # which is used only to define the eligible population.
+  # --------------------------------------------------------------------------
+  
+  if (kri_exists("screening_to_randomisation_time")) {
+    meta_row <- get_meta_row("screening_to_randomisation_time")
+    data <- get_dataset(meta_row)
+    participant_id_col <- names(data)[1]
+    
+    event_name <- metadata_value(meta_row, "event_name")
+    field <- metadata_value(meta_row, "field")
+    condition <- metadata_value(meta_row, "positive_condition")
+    date_start_col <- metadata_value(meta_row, "date_start_field")
+    date_end_col <- metadata_value(meta_row, "date_end_field")
+    
+    check_fields(
+      data,
+      c(
+        participant_id_col, "redcap_event_name", site_col,
+        split_metadata_value(field), date_start_col, date_end_col
+      ),
+      "screening_to_randomisation_time"
+    )
+    
+    eligible <- data |>
+      dplyr::filter(.data$redcap_event_name == event_name)
+    
+    eligible <- apply_condition(eligible, field, condition)
+    
+    eligible_ids <- eligible |>
+      dplyr::filter(is_populated(.data[[site_col]])) |>
+      dplyr::distinct(
+        .data[[participant_id_col]],
+        site = .data[[site_col]]
+      )
+    
+    participant_dates <- data |>
+      dplyr::filter(
+        .data[[participant_id_col]] %in% eligible_ids[[participant_id_col]]
+      ) |>
+      dplyr::mutate(
+        start_date = parse_date(.data[[date_start_col]]),
+        end_date = parse_date(.data[[date_end_col]])
+      ) |>
+      dplyr::group_by(.data[[participant_id_col]]) |>
+      dplyr::summarise(
+        start_date = first_non_na(.data$start_date),
+        end_date = first_non_na(.data$end_date),
+        .groups = "drop"
+      )
+    
+    participant_times <- eligible_ids |>
+      dplyr::left_join(participant_dates, by = participant_id_col) |>
+      dplyr::mutate(
+        days_to_randomisation = as.numeric(.data$end_date - .data$start_date)
+      ) |>
+      dplyr::filter(!is.na(.data$days_to_randomisation))
+    
+    all_sites <- get_all_sites(data)
+    
+    site_averages <- participant_times |>
+      dplyr::group_by(.data$site) |>
+      dplyr::summarise(
+        kri_value = mean(.data$days_to_randomisation, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    result <- all_sites |>
+      dplyr::left_join(site_averages, by = "site")
+    
+    kri_results[["screening_to_randomisation_time"]] <- prepare_result(
+      result,
+      meta_row,
+      "kri_value",
+      "decimal"
+    )
+  }
+  
+  # --------------------------------------------------------------------------
+  # Time from site activation to first participant recruited/screened.
+  # --------------------------------------------------------------------------
+  
+  if (kri_exists("activation_to_first_recruitment")) {
+    meta_row <- get_meta_row("activation_to_first_recruitment")
+    
+    result <- calculate_activation_time_result(meta_row)
+    
+    kri_results[["activation_to_first_recruitment"]] <- prepare_result(
+      result,
+      meta_row,
+      "kri_value",
+      "decimal"
+    )
+  }
+  
+  if (kri_exists("activation_to_first_screen")) {
+    meta_row <- get_meta_row("activation_to_first_screen")
+    
+    # This KRI's metadata row leaves lookup_join_field_1 blank, even though
+    # it needs the same site-activation-date join as
+    # activation_to_first_recruitment (which uses "dag"). Treated as a
+    # metadata gap rather than an intentional difference - confirmed with
+    # the study team - so "dag" is applied here too.
+    if (is.na(metadata_value(meta_row, "lookup_join_field_1"))) {
+      meta_row$lookup_join_field_1 <- "dag"
+    }
+    
+    result <- calculate_activation_time_result(meta_row)
+    
+    kri_results[["activation_to_first_screen"]] <- prepare_result(
+      result,
+      meta_row,
+      "kri_value",
+      "decimal"
+    )
+  }
+  
   # ==========================================================================
   # Participant retention and data completeness
   # ==========================================================================
@@ -926,57 +1421,23 @@ produce_kri_report <- function(
       next
     }
     
-    meta_row <- get_meta_row(kri_id)
-    data <- get_dataset(meta_row)
-    participant_id_col <- names(data)[1]
-    
-    event_name <- metadata_value(meta_row, "event_name")
-    field <- metadata_value(meta_row, "field")
-    condition <- metadata_value(meta_row, "positive_condition")
+    meta_rows <- get_meta_rows(kri_id)
     output_column <- retention_map[[kri_id]]
     
-    check_fields(
-      data,
-      c(participant_id_col, "redcap_event_name", site_col, field),
-      kri_id
-    )
-    
-    all_sites <- get_all_sites(data)
-    
-    selected_data <- data |>
-      dplyr::filter(.data$redcap_event_name == event_name)
-    
-    selected_data <- apply_condition(
-      selected_data,
-      field,
-      condition
-    )
-    
-    counts <- selected_data |>
-      dplyr::filter(is_populated(.data[[site_col]])) |>
-      dplyr::distinct(
-        .data[[participant_id_col]],
-        .data[[site_col]]
-      ) |>
-      dplyr::count(
-        site = .data[[site_col]],
-        name = output_column
+    for (row_index in seq_len(nrow(meta_rows))) {
+      meta_row <- meta_rows[row_index, , drop = FALSE]
+      
+      result <- calculate_distinct_count_result(meta_row, output_column)
+      
+      result_id <- paste0(kri_id, "__row", meta_row$.kri_row_id[[1]])
+      
+      kri_results[[result_id]] <- prepare_result(
+        result,
+        meta_row,
+        output_column,
+        "integer"
       )
-    
-    result <- all_sites |>
-      dplyr::left_join(counts, by = "site")
-    
-    result[[output_column]] <- tidyr::replace_na(
-      result[[output_column]],
-      0L
-    )
-    
-    kri_results[[kri_id]] <- prepare_result(
-      result,
-      meta_row,
-      output_column,
-      "integer"
-    )
+    }
   }
   
   if (kri_exists("number_missed")) {
@@ -1139,52 +1600,58 @@ produce_kri_report <- function(
       next
     }
     
-    meta_row <- get_meta_row(kri_id)
-    data <- get_dataset(meta_row)
-    
-    event_name <- metadata_value(meta_row, "event_name")
-    fields <- metadata_value(meta_row, "field")
-    condition <- metadata_value(meta_row, "positive_condition")
+    meta_rows <- get_meta_rows(kri_id)
     output_column <- safety_count_map[[kri_id]]
     
-    check_fields(
-      data,
-      c("redcap_event_name", site_col, split_metadata_value(fields)),
-      kri_id
-    )
-    
-    all_sites <- get_all_sites(data)
-    
-    selected_data <- data |>
-      dplyr::filter(.data$redcap_event_name == event_name)
-    
-    selected_data <- apply_condition(
-      selected_data,
-      fields,
-      condition
-    )
-    
-    counts <- selected_data |>
-      dplyr::filter(is_populated(.data[[site_col]])) |>
-      dplyr::count(
-        site = .data[[site_col]],
-        name = output_column
+    for (row_index in seq_len(nrow(meta_rows))) {
+      meta_row <- meta_rows[row_index, , drop = FALSE]
+      data <- get_dataset(meta_row)
+      
+      event_name <- metadata_value(meta_row, "event_name")
+      fields <- metadata_value(meta_row, "field")
+      condition <- metadata_value(meta_row, "positive_condition")
+      
+      check_fields(
+        data,
+        c("redcap_event_name", site_col, split_metadata_value(fields)),
+        kri_id
       )
-    
-    result <- all_sites |>
-      dplyr::left_join(counts, by = "site")
-    
-    result[[output_column]] <- tidyr::replace_na(
-      result[[output_column]],
-      0L
-    )
-    
-    kri_results[[kri_id]] <- prepare_result(
-      result,
-      meta_row,
-      output_column,
-      "integer"
-    )
+      
+      all_sites <- get_all_sites(data)
+      
+      selected_data <- data |>
+        dplyr::filter(.data$redcap_event_name == event_name)
+      
+      selected_data <- apply_condition(
+        selected_data,
+        fields,
+        condition
+      )
+      
+      counts <- selected_data |>
+        dplyr::filter(is_populated(.data[[site_col]])) |>
+        dplyr::count(
+          site = .data[[site_col]],
+          name = output_column
+        )
+      
+      result <- all_sites |>
+        dplyr::left_join(counts, by = "site")
+      
+      result[[output_column]] <- tidyr::replace_na(
+        result[[output_column]],
+        0L
+      )
+      
+      result_id <- paste0(kri_id, "__row", meta_row$.kri_row_id[[1]])
+      
+      kri_results[[result_id]] <- prepare_result(
+        result,
+        meta_row,
+        output_column,
+        "integer"
+      )
+    }
   }
   
   safety_percent_map <- c(
@@ -1198,116 +1665,160 @@ produce_kri_report <- function(
       next
     }
     
-    meta_row <- get_meta_row(kri_id)
-    safety_data <- get_dataset(meta_row)
-    recruitment_data <- get_dataset(
-      meta_row,
-      "lookup_join_system_2"
-    )
-    
-    safety_event <- metadata_value(meta_row, "event_name")
-    safety_fields <- metadata_value(meta_row, "field")
-    condition <- metadata_value(meta_row, "positive_condition")
-    safety_link_col <- metadata_value(
-      meta_row,
-      "lookup_join_field_1"
-    )
-    recruitment_link_col <- metadata_value(
-      meta_row,
-      "lookup_join_field_2"
-    )
-    recruitment_event <- metadata_value(
-      meta_row,
-      "lookup_join_event_2"
-    )
+    meta_rows <- get_meta_rows(kri_id)
     numerator_column <- safety_percent_map[[kri_id]]
     
-    check_fields(
-      safety_data,
-      c(
-        "redcap_event_name", safety_link_col,
-        split_metadata_value(safety_fields)
-      ),
-      kri_id
-    )
-    check_fields(
-      recruitment_data,
-      c("redcap_event_name", recruitment_link_col, site_col),
-      kri_id
-    )
-    
-    selected_safety <- safety_data |>
-      dplyr::filter(.data$redcap_event_name == safety_event)
-    
-    selected_safety <- apply_condition(
-      selected_safety,
-      safety_fields,
-      condition
-    )
-    
-    selected_safety <- selected_safety |>
-      dplyr::filter(
-        is_populated(.data[[safety_link_col]])
-      ) |>
-      dplyr::distinct(
-        record_id = .data[[safety_link_col]]
-      )
-    
-    recruited_lookup <- recruitment_data |>
-      dplyr::filter(
-        .data$redcap_event_name == recruitment_event
-      ) |>
-      dplyr::filter(
-        is_populated(.data[[recruitment_link_col]])
-      ) |>
-      dplyr::filter(is_populated(.data[[site_col]])) |>
-      dplyr::transmute(
-        record_id = .data[[recruitment_link_col]],
-        site = .data[[site_col]]
-      ) |>
-      dplyr::distinct()
-    
-    denominator <- recruited_lookup |>
-      dplyr::count(
-        .data$site,
-        name = "denominator"
-      )
-    
-    numerator <- selected_safety |>
-      dplyr::inner_join(
-        recruited_lookup,
-        by = "record_id"
-      ) |>
-      dplyr::distinct(.data$record_id, .data$site) |>
-      dplyr::count(
-        .data$site,
-        name = numerator_column
-      )
-    
-    result <- denominator |>
-      dplyr::left_join(numerator, by = "site")
-    
-    result[[numerator_column]] <- tidyr::replace_na(
-      result[[numerator_column]],
-      0L
-    )
-    
-    result <- result |>
-      dplyr::mutate(
-        kri_value = dplyr::if_else(
-          .data$denominator > 0,
-          .data[[numerator_column]] /
-            .data$denominator * 100,
-          NA_real_
+    for (row_index in seq_len(nrow(meta_rows))) {
+      meta_row <- meta_rows[row_index, , drop = FALSE]
+      
+      safety_data <- get_dataset(meta_row)
+      participant_id_col <- names(safety_data)[1]
+      
+      safety_event <- metadata_value(meta_row, "event_name")
+      safety_fields <- metadata_value(meta_row, "field")
+      condition <- metadata_value(meta_row, "positive_condition")
+      
+      # A separate recruitment/registration dataset (joined via
+      # lookup_join_system_2 etc.) is only used when this KRI's metadata
+      # actually specifies one. When it's blank - i.e. the safety and
+      # recruitment population live in the same dataset/project - the
+      # denominator (all participants recorded at each site) is taken
+      # directly from safety_data itself, keyed on its own record id
+      # column, with no join required.
+      recruitment_system <- metadata_value(meta_row, "lookup_join_system_2")
+      
+      if (is.na(recruitment_system)) {
+        
+        safety_link_col <- participant_id_col
+        
+        check_fields(
+          safety_data,
+          c(
+            participant_id_col, "redcap_event_name", site_col,
+            split_metadata_value(safety_fields)
+          ),
+          kri_id
         )
+        
+        recruited_lookup <- safety_data |>
+          dplyr::filter(is_populated(.data[[participant_id_col]])) |>
+          dplyr::filter(is_populated(.data[[site_col]])) |>
+          dplyr::transmute(
+            record_id = .data[[participant_id_col]],
+            site = .data[[site_col]]
+          ) |>
+          dplyr::distinct()
+        
+      } else {
+        
+        recruitment_data <- get_dataset(
+          meta_row,
+          "lookup_join_system_2"
+        )
+        
+        safety_link_col <- metadata_value(
+          meta_row,
+          "lookup_join_field_1"
+        )
+        recruitment_link_col <- metadata_value(
+          meta_row,
+          "lookup_join_field_2"
+        )
+        recruitment_event <- metadata_value(
+          meta_row,
+          "lookup_join_event_2"
+        )
+        
+        check_fields(
+          safety_data,
+          c(
+            "redcap_event_name", safety_link_col,
+            split_metadata_value(safety_fields)
+          ),
+          kri_id
+        )
+        check_fields(
+          recruitment_data,
+          c("redcap_event_name", recruitment_link_col, site_col),
+          kri_id
+        )
+        
+        recruited_lookup <- recruitment_data |>
+          dplyr::filter(
+            .data$redcap_event_name == recruitment_event
+          ) |>
+          dplyr::filter(
+            is_populated(.data[[recruitment_link_col]])
+          ) |>
+          dplyr::filter(is_populated(.data[[site_col]])) |>
+          dplyr::transmute(
+            record_id = .data[[recruitment_link_col]],
+            site = .data[[site_col]]
+          ) |>
+          dplyr::distinct()
+      }
+      
+      selected_safety <- safety_data |>
+        dplyr::filter(.data$redcap_event_name == safety_event)
+      
+      selected_safety <- apply_condition(
+        selected_safety,
+        safety_fields,
+        condition
       )
-    
-    kri_results[[kri_id]] <- prepare_result(
-      result,
-      meta_row,
-      "kri_value",
-      "percentage"
-    )
+      
+      selected_safety <- selected_safety |>
+        dplyr::filter(
+          is_populated(.data[[safety_link_col]])
+        ) |>
+        dplyr::distinct(
+          record_id = .data[[safety_link_col]]
+        )
+      
+      denominator <- recruited_lookup |>
+        dplyr::count(
+          .data$site,
+          name = "denominator"
+        )
+      
+      numerator <- selected_safety |>
+        dplyr::inner_join(
+          recruited_lookup,
+          by = "record_id"
+        ) |>
+        dplyr::distinct(.data$record_id, .data$site) |>
+        dplyr::count(
+          .data$site,
+          name = numerator_column
+        )
+      
+      result <- denominator |>
+        dplyr::left_join(numerator, by = "site")
+      
+      result[[numerator_column]] <- tidyr::replace_na(
+        result[[numerator_column]],
+        0L
+      )
+      
+      result <- result |>
+        dplyr::mutate(
+          kri_value = dplyr::if_else(
+            .data$denominator > 0,
+            .data[[numerator_column]] /
+              .data$denominator * 100,
+            NA_real_
+          )
+        )
+      
+      result_id <- paste0(kri_id, "__row", meta_row$.kri_row_id[[1]])
+      
+      kri_results[[result_id]] <- prepare_result(
+        result,
+        meta_row,
+        "kri_value",
+        "percentage"
+      )
+    }
   }
   
   if (kri_exists("late_report_safety")) {
@@ -1701,15 +2212,20 @@ produce_kri_report <- function(
   
   combined_results <- dplyr::bind_rows(kri_results)
   
-  category_order <- kri_metadata |>
-    dplyr::filter(.data$kri_id %in% names(kri_results)) |>
+  # Category and section order both follow the metadata's own row order
+  # (via kri_row_number), not just the unique kri_id values - this is what
+  # lets two rows sharing a kri_id (e.g. number_withdrawn) render as two
+  # separate, correctly ordered sections.
+  category_order <- combined_results |>
+    dplyr::distinct(.data$kri_category, .data$kri_row_number) |>
+    dplyr::arrange(.data$kri_row_number) |>
     dplyr::pull(.data$kri_category) |>
     unique()
   
-  kri_order <- kri_metadata |>
-    dplyr::filter(.data$kri_id %in% names(kri_results)) |>
-    dplyr::pull(.data$kri_id) |>
-    unique()
+  kri_result_order <- combined_results |>
+    dplyr::distinct(.data$kri_result_id, .data$kri_row_number) |>
+    dplyr::arrange(.data$kri_row_number) |>
+    dplyr::pull(.data$kri_result_id)
   
   workbook <- openxlsx::createWorkbook(
     creator = "Paigan Aspinall"
@@ -1825,13 +2341,13 @@ produce_kri_report <- function(
       borderColour = "#000000"
     )
     
-    category_kri_order <- kri_order[
-      kri_order %in% unique(category_results$kri_id)
+    category_kri_order <- kri_result_order[
+      kri_result_order %in% unique(category_results$kri_result_id)
     ]
     
     maximum_sites <- category_results |>
       dplyr::filter(!is.na(.data$site)) |>
-      dplyr::group_by(.data$kri_id) |>
+      dplyr::group_by(.data$kri_result_id) |>
       dplyr::summarise(
         number_sites = dplyr::n_distinct(.data$site),
         .groups = "drop"
@@ -1875,10 +2391,10 @@ produce_kri_report <- function(
     current_row <- 2L
     
     for (kri_number in seq_along(category_kri_order)) {
-      selected_kri_id <- category_kri_order[[kri_number]]
+      selected_result_id <- category_kri_order[[kri_number]]
       
       selected_result <- category_results |>
-        dplyr::filter(.data$kri_id == selected_kri_id) |>
+        dplyr::filter(.data$kri_result_id == selected_result_id) |>
         dplyr::filter(!is.na(.data$site)) |>
         dplyr::arrange(.data$site)
       
