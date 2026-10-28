@@ -31,11 +31,31 @@ exports the results to a formatted Excel workbook.
 Only KRIs included in the supplied metadata are calculated. Worksheets are
 created only for KRI categories containing at least one calculated result.
 
+\code{kri_metadata} may contain more than one row for the same
+\code{kri_id} - for example, to report a family-level and an
+individual-level variant of the same underlying KRI (such as
+\code{number_withdrawn} or \code{number_partial}). Each row is calculated
+and displayed as its own section, using that row's own
+\code{kri_description} as the section title.
+
+Some KRIs (\code{activation_to_first_recruitment},
+\code{activation_to_first_screen}) require a site-level lookup dataset
+(e.g. a "locations" dataset giving each site's activation date) to be
+available in \code{data_environment}, in addition to the dataset named in
+\code{export_name}. The lookup dataset is named in
+\code{lookup_join_system_1}, joined to the main dataset via
+\code{lookup_join_field_1} (on the lookup dataset) and
+\code{lookup_join_field_2} (on the main dataset), reading the date from
+\code{lookup_value_field_1}. Site names are matched between the two
+datasets after normalisation (lower-cased, non-alphanumeric characters
+removed), so minor formatting differences between systems (e.g.
+\code{"01 - Site 1"} vs \code{"X01...Site.1"}) do not prevent a match.
+
 Each worksheet contains:
 
 \itemize{
 \item A category heading
-\item One section per KRI
+\item One section per KRI (per metadata row)
 \item Site names displayed horizontally
 \item The calculated value for each site
 }

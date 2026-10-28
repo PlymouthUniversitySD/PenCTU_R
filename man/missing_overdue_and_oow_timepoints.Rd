@@ -42,6 +42,11 @@ site's own participant count, so sites of very different sizes don't waste space
 is labelled with just each site's short prefix (e.g. "01", "02"), matching the site/DAG already
 used throughout the rest of the workbook.
 }
+\details{
+Baseline "occurred" status is inferred directly from whether the baseline date field is populated,
+rather than from a separate baseline-occurred yes/no field - the metadata dataframe no longer needs
+a \code{baseline_occurred_field_name} column for this function to run.
+}
 \examples{
 missing_overdue_and_oow_timepoints(data, metadata)
 
