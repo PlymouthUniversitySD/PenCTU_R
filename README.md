@@ -1,100 +1,71 @@
-# PENCTU R
+# PenCTU R package
 
-## extract_json_from_column
+R functions used by the Peninsula Clinical Trials Unit (PenCTU) data team for REDCap data management.
 
-### Description
-This function takes a data frame and extracts all json properties, from all JSON objects in a specified column, creates a new column for each property and populates the correct value of the property for each row. Also allows user to specify which JSON properties they are interested in - all others will be discarded.
+Validation records, risk levels and current versions are in the Script Register. 
 
-### Usage
-```
-extract_json_from_column(data, col_name, prop_list)
-```
+## Installing and updating
 
-### Arguments
--   `data`: df - The data frame which contains a column of json data
+Install the package from GitHub (you only need to install `remotes` once):
 
--   `col_name`: chr - The name of the column containing the json data e.g. "redcap_record_metadata" 
-
--   `prop_list`: _Optional_ c(chr) -  A vector containing JSON properties that the user would like to extract from the json column (col_name) e.g. c("column_name_1", "another_column_name"), if not specified returns all extracted json properties. 
-
-### Examples
-Suppose you have a dataframe (df) with 4 columns (ID: int, Value: chr, Description: chr, JSON: chr). The JSON column contains a JSON object for each ID with the following structure: 
-```
-{
-    event: {
-        name: chr, 
-        status: int, 
-        eventDate: chr
-    },
-    item: {
-        item1: int
-    }
-}
-
-```
-To extract all json properties from this column use: 
-
-```
-extract_json_from_column(data = df, col_name = "JSON")
+```r
+install.packages("remotes")
+remotes::install_github("<organisation>/PenCTU_R")
 ```
 
-this will return a new dataframe containing the following columns:
-(ID, Value, Description, event.name, event.status, event.eventDate, item.item1)
+To update to the latest version, run the same `install_github()` line again and restart R.
 
-To view the column names in the returned data frame use: 
+To check which version you have:
 
-```
-result <- extract_json_from_column(data = df, col_name = "JSON")
-names(result)
+```r
+packageVersion("PenCTU")
 ```
 
-The user may only be interested in the event name and status. In this case, use: 
+Load it at the top of a script with `library(PenCTU)`.
 
-```
-extract_json_from_column(data = df, col_name = "JSON", prop_list = c("event.name", "event.status"))
-```
-this will return a new dataframe containing the following columns:
-(ID, Value, Description, event.name, event.status).
+## Storing API tokens
 
+Never type an API token into a script or the console. Store each token once on your computer using the Windows Credential Manager, through the `keyring` package:
 
-## labels_from_dictionary
-
-### Description
-This function checks the data dictionary (dictionary_df) for any variable names which match those in the data (data_df). It then assigns the label from dictionary_df to the variables in data_df
-
-### Usage
-```
-from_rcc <- labels_from_dictionary(data_df = export, dictionary_df = data_dictionary, var_names_str= "Variable...Field.Name", var_labels_str = "Field.Label")
+```r
+install.packages("keyring")                 # once
+keyring::key_set("STUDY_PURPOSE_TOKEN")     # a box opens: paste the token and click OK
 ```
 
-### Arguments
--   `data_df`: df - The data frame to add labels to
+Then read it in your script:
 
--   `dictionary_df`: df - The data dictionary containing variable names and data labels
+```r
+token <- keyring::key_get("STUDY_PURPOSE_TOKEN")
+```
 
--   `var_names_str`: chr - A string containing the name of the column in dictionary_df which contains the variable names
+- **Names:** use the study and what the token is for, for example `SAFE2_EXPORTS_TOKEN`. Use the exact name the script expects.
+- **See which tokens are stored:** `keyring::key_list()` shows the names only, never the tokens.
+- **Remove a token:** `keyring::key_delete("STUDY_PURPOSE_TOKEN")`.
+- **New computer or Windows login:** tokens are stored per computer and login, so run `key_set()` again.
+- **If a token may have been exposed** (for example typed into a script or shared), regenerate it in REDCap on the project's API page.
 
--   `var_labels_str`: chr - A string containing the name of the column in dictionary_df which contains the corresponding data labels
+## Functions
 
-### Examples
+| Function | What it does |
+|---|---|
+| `build_nc_log()` | Finds non-compliances that have not been logged yet, writes them to an NC log file and flags them in REDCap. |
+| `get_audit_trail()` | Downloads a REDCap project's log and splits it into one row per field change, with the old and new values. |
+| `get_redcap_exports()` | Exports a study's REDCap reports and saves each one as a CSV file, with an export log. |
 
+### build_nc_log()
 
-## check_field_completeness
+Works through a study's non-compliance (NC) presets, one row per NC rule, and finds the records where an NC has been triggered but not yet logged. It writes these to a date-stamped NC log file, then flags each record in REDCap so it isn't picked up again. Set `upload = FALSE` for a dry run that creates the log without saving the file or flagging any records. Used by `TEMPLATE_AutomatedNonCompliances`.
 
+Specification: [specifications/build_nc_log.md](specifications/build_nc_log.md)
 
-### Description
-This function calculates the completeness of each field in a given data frame.
+### get_audit_trail()
 
-### Arguments
+Downloads the whole log of a REDCap project through the API. Each data entry is split into one row per field, with the value before and after the change, who made it, when, and the reason given. Entries that aren't data changes, such as exports and design changes, are kept as they are. A CSV is saved only if you ask for one, and never inside a GitHub repository. Used by the audit trail review (ATR) functions and `TEMPLATE_ATR`.
 
-- `data`: A data frame to check the completeness of its fields.
+Specification: [specifications/get_audit_trail.md](specifications/get_audit_trail.md)
 
-- `by`: The column name as a string to group the data by before checking field completeness. This argument is optional.
+### get_redcap_exports()
 
-- `full`: A boolean that determines whether to return completeness information for missing values and a set of predefined codes. This argument is optional, and its default value is `FALSE`.
+Exports each REDCap report listed in a study's export metadata file and saves it as a CSV file, exactly as REDCap provides it, ready to send to the statistics team. It also saves an export log. Files are saved outside any GitHub repository. Used by `TEMPLATE_GetExports`.
 
-### Return Value
-
-A data frame with the completeness of each field.
-
-### Examples
+Specification: [specifications/get_redcap_exports.md](specifications/get_redcap_exports.md)

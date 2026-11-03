@@ -4,92 +4,120 @@
 \alias{build_nc_log}
 \title{Build Non-Conformance Log and Flag Actioned Records}
 \usage{
-build_nc_log(nc_metadata, initials, job_role, datasets, tokens, url)
+build_nc_log(
+  nc_metadata,
+  initials,
+  job_role,
+  datasets,
+  tokens,
+  url,
+  log_file = NULL,
+  upload = TRUE,
+  script = NULL
+)
 }
 \arguments{
-\item{nc_metadata}{A data frame of NC preset metadata, one row per rule.
-Expected columns include:
-\describe{
-\item{nc_trigger_field}{Name of the field that flags an affected record (value \code{1} = triggered)}
-\item{nc_notes_field}{Name of the field containing site notes to append to the log description}
-\item{nc_dm_field}{Name of the field used to mark a record as actioned}
-\item{timepoint}{REDCap event name the rule applies to}
-\item{system}{Name identifying which dataset/project the rule applies to (must match a name in \code{datasets} and \code{tokens})}
-\item{nc_description}{Description of the non-conformance, used in the log entry}
-\item{category}{Category of the non-conformance, used in the log entry}
-}}
+\item{nc_metadata}{A data frame of NC preset metadata, one row per rule, with
+columns \code{nc_trigger_field}, \code{nc_notes_field}, \code{nc_dm_field},
+\code{timepoint} (unique event name; blank for classic projects),
+\code{system}, \code{nc_description} and \code{category}.}
 
-\item{initials}{Character. Initials of the person running the function, recorded in the log's \code{ctu_person} field.}
+\item{initials}{Character. Initials of the person running the function.}
 
-\item{job_role}{Character. Job title of the person running the function, recorded in the log's \code{ctu_person} field.}
+\item{job_role}{Character. Job title of the person running the function.}
 
-\item{datasets}{A named list of data frames, one per REDCap project, keyed by the same names used in \code{nc_metadata$system}.}
+\item{datasets}{A named list of data frames (REDCap exports, raw values),
+one per project, named as in \code{nc_metadata$system}. The first column
+must be the record ID.}
 
-\item{tokens}{A named list of REDCap API tokens, one per project, keyed by the same names used in \code{nc_metadata$system}.}
+\item{tokens}{A named list of REDCap API tokens, named as in \code{datasets}.}
 
-\item{url}{Character. REDCap API URL used for both export and upload requests.}
+\item{url}{Character. REDCap API URL.}
+
+\item{log_file}{Character. Path of the CSV file to write the NC log to. Must
+not already exist. Required when \code{upload = TRUE}.}
+
+\item{upload}{Logical. If \code{FALSE}, the NC log is returned but no file is
+written and nothing is uploaded (a dry run for checking the output).}
+
+\item{script}{Optional. Name and version of the script that ran this, e.g.
+"TEMPLATE_AutomatedNonCompliances V2.1.0". It is added, with this
+function's name and version, to the end of each NC description.}
 }
 \value{
-A data frame containing one row per affected record, with columns:
-\describe{
-\item{status}{Log status, currently always \code{"Closed"}}
-\item{log_number}{Reserved for manual completion}
-\item{database_id}{Reserved for manual completion}
-\item{ctu_person}{Initials and job role of the person who ran the function}
-\item{participant_id}{Identifier of the affected record (first column of the dataset)}
-\item{description}{NC description combined with any site notes}
-\item{remedial_action}{Reserved for manual completion}
-\item{nc_date}{Date the non-conformance was identified}
-\item{report_date}{Date the non-conformance was reported}
-\item{tm_date}{Reserved for manual completion}
-\item{category}{Category of the non-conformance}
-\item{classification}{Reserved for manual completion}
-}
-
-As a side effect, the function also uploads a "checked" flag
-(\code{nc_dm_field = 1}) back to the relevant REDCap project for every
-affected record processed. A warning is issued (rather than the function
-stopping) if an individual upload fails or if a metadata row references an
-unrecognised dataset/token.
+A data frame with one row per affected record, event and instance
+for each metadata rule, with columns \code{status} ("Closed"),
+\code{log_number} (""), \code{database_id} ("NA"), \code{ctu_person}
+("initials, job role"), \code{participant_id}, \code{description}
+(NC description, event (longitudinal projects), repeat instance where
+applicable, and site notes
+where recorded), \code{remedial_action} ("NA"), \code{nc_date} and
+\code{report_date} (date of the run), \code{tm_date} (""),
+\code{category} and \code{classification} ("").
 }
 \description{
-Loops through every row of a non-conformance (NC) metadata preset dataset,
-identifies records that trigger that NC and have not yet been actioned,
-builds a corresponding NC log entry for each affected record, and uploads
-a "checked" flag back to the source REDCap project so the same record is
-not re-identified on a subsequent run.
+Identifies records that trigger a non-conformance (NC) defined in an NC
+metadata preset dataset and have not yet been actioned, writes an NC log
+file, and then uploads a "checked" flag to the source REDCap project so the
+same record is not identified again on a later run.
 }
 \details{
-For each metadata row, a record is considered affected where:
+The function works in four stages, and nothing is uploaded until the first
+three have completed:
+\enumerate{
+\item Checks the inputs and stops if anything needed is missing (see
+Checks below).
+\item Identifies affected records for every metadata row.
+\item Writes the NC log to \code{log_file}.
+\item Uploads the flags, one import per REDCap project and flag field, and
+stops if an import fails or REDCap reports a different number of records
+from the number sent.
+}
+
+Both longitudinal and classic (non-longitudinal) projects are supported. A
+project is treated as longitudinal when its dataset has a
+\code{redcap_event_name} column. For classic projects, leave \code{timepoint}
+blank in the metadata.
+
+A record (row) is affected by a metadata row where:
 \itemize{
+\item for longitudinal projects, \code{redcap_event_name} equals the
+metadata \code{timepoint};
 \item the field named in \code{nc_trigger_field} equals \code{1}
-\item the field named in \code{nc_dm_field} is empty (either \code{NA} or \code{""})
+(blank, \code{NA}, \code{0} or any other value = not triggered); and
+\item the field named in \code{nc_dm_field} is empty (\code{NA}, \code{""}
+or white space).
 }
+}
+\section{Checks}{
 
-For every affected record, this function:
+The function stops, before anything is written or uploaded, if:
 \itemize{
-\item appends one row to the returned NC log, combining the metadata's
-description with any site notes recorded in \code{nc_notes_field}
-\item uploads the record's identifying fields (\code{record_id},
-\code{redcap_event_name}, \code{redcap_repeat_instance},
-\code{redcap_repeat_instrument}) back to REDCap with the field named
-in \code{nc_dm_field} set to \code{1}, marking it as actioned
+\item a required metadata column is missing, or a required metadata value
+is blank (\code{nc_notes_field} may be blank);
+\item a \code{system} value has no matching entry in \code{datasets} or
+\code{tokens};
+\item a field named in the metadata is not in the matching dataset;
+\item \code{timepoint} is blank for a longitudinal project, or is given
+for a classic project;
+\item \code{log_file} already exists.
+}
+Exact duplicate metadata rows are removed with a warning. Metadata events
+that do not appear in the matching dataset are listed in a message, as they
+may be misspelt (or may simply have no data yet).
 }
 
-The REDCap project and API token used for each metadata row are selected
-dynamically from \code{datasets} and \code{tokens} using the value in the
-metadata's \code{system} column - metadata rows whose \code{system} value
-has no matching entry in \code{datasets} or \code{tokens} are skipped with
-a warning.
-}
 \examples{
+\dontrun{
 nc_log <- build_nc_log(
   nc_metadata = nc_metadata,
   initials    = initials,
   job_role    = job_role,
   datasets    = list(families = families, participants = participants),
   tokens      = list(families = family_token, participants = participant_token),
-  url         = url
+  url         = url,
+  log_file    = "NC_LOG_20261027_0915.csv"
 )
+}
 
 }
