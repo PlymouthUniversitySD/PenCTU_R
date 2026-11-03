@@ -2,63 +2,93 @@
 % Please edit documentation in R/get_audit_trail.R
 \name{get_audit_trail}
 \alias{get_audit_trail}
-\title{Download and process REDCap audit trail data}
+\title{Download and process a REDCap audit trail (logging)}
 \usage{
 get_audit_trail(
   token,
   study_name,
-  begin_time = "",
+  environment,
   end_time = "",
-  url = "https://clinicaltrials.plymouth.ac.uk/api/",
-  write_file = TRUE
+  write_file = FALSE,
+  output_dir = file.path(path.expand("~"), "REDCap_audit_trails", study_name),
+  script = NULL
 )
 }
 \arguments{
-\item{token}{REDCap API token with permission to access log data.}
+\item{token}{REDCap API token with logging rights. Read it with
+\code{keyring::key_get()}.}
 
-\item{study_name}{Character string used when naming the exported CSV file.}
+\item{study_name}{Study name. Only used in the file name when
+\code{write_file = TRUE}.}
 
-\item{begin_time}{Start datetime for log extraction in \code{"YYYY-MM-DD HH:MM"}
-format.}
+\item{environment}{\code{"live"} or \code{"test"}.}
 
-\item{end_time}{Optional end datetime for log extraction in
-\code{"YYYY-MM-DD HH:MM"} format. Defaults to all available records after
-\code{begin_time}.}
+\item{end_time}{Optional. Only include log entries up to this time,
+\code{"YYYY-MM-DD HH:MM"}. Blank (default) = up to now.}
 
-\item{url}{REDCap API URL.}
+\item{write_file}{\code{FALSE} (default) or \code{TRUE} to also save a CSV.}
 
-\item{write_file}{Logical indicating whether to export the processed audit
-trail as a CSV file.}
+\item{output_dir}{Folder for the CSV (created if needed; must not be inside
+a Git repository). Defaults to \code{Documents/REDCap_audit_trails/<study_name>}.}
+
+\item{script}{Optional. Name and version of the script that ran this, e.g.
+"TEMPLATE_ATR V2.0.0". It is added, with this function's name and version,
+in the generated_by column.}
 }
 \value{
-A processed audit trail dataframe containing:
-\itemize{
-\item Original audit log variables
-\item Extracted repeating instance numbers
-\item Event names
-\item Field names
-\item Old and new values
-\item Old and new timestamps
+A data frame with one row per log entry that is not a data entry
+(exports, design changes, etc., copied as they are) and one row per field
+for each data entry. Columns:
+\describe{
+\item{project}{Project title from REDCap.}
+\item{timestamp}{Date-time of the log entry (as shown in REDCap).}
+\item{username}{Who made the entry (\code{[survey respondent]} for surveys).}
+\item{action}{Type of entry: \code{"Update record"} (staff edit on a
+form), \code{"Create record"}, \code{"Update record (Auto calculation)"},
+\code{"Update record (API)"}, \code{"Update record (Data Quality)"},
+\code{"Create response"}/\code{"Update response"} (survey),
+\code{"Assign record to Data Access Group"}; other entries keep
+REDCap's text.}
+\item{log_action}{REDCap's original action text.}
+\item{record}{Record ID (text, so leading zeros are kept).}
+\item{event}{Event label as shown in the log (blank if not longitudinal).}
+\item{instance}{Repeat instance (1 if not repeating).}
+\item{field}{Field name.}
+\item{option}{Checkbox option code (blank for other fields).}
+\item{old_value, new_value}{Value before and after. Checkboxes are
+\code{"checked"}/\code{"unchecked"}. \code{old_value} is blank (NA)
+for a first value.}
+\item{old_timestamp, new_timestamp}{When the old and new values were entered.}
+\item{change_type}{\code{"First value"}, \code{"Changed"} (includes
+clearing a value) or \code{"Unchanged"} (same value saved again).}
+\item{reason}{Reason for change, if one was given.}
+\item{details}{REDCap's original list of data changes.}
 }
 }
 \description{
-This function retrieves REDCap audit trail (log) data via the REDCap API
-and processes "Update record" and "Update Response" actions into a
-structured row-level format. Repeating instrument instances are extracted
-where present, and field-level changes are separated into old and new
-values with corresponding timestamps.
+Downloads the whole REDCap log for a project through the API and splits
+every data entry into one row per field, showing the value before and after.
 }
 \details{
-Processed audit trail data can optionally be exported as a CSV file.
+How it works:
+\enumerate{
+\item Downloads the log from the start of the project (so every value's
+history is complete) up to \code{end_time}.
+\item Reads each data entry: record, event, repeat instance, and each
+field and value. Checkbox options are kept separate (\code{field} plus
+\code{option}).
+\item Puts every value for the same record, event, instance and field in
+time order, from every source (staff, survey, auto calculation, API,
+Data Quality), so \code{old_value} is always the value just before.
+}
 
-"Update record" and "Update Response" log entries are expanded so each
-modified field is represented as a separate row. This allows easier
-downstream analysis of audit trail activity and field-level changes.
+A "Delete record" entry starts the record's history again, so a
+re-created record is not compared with the deleted one. REDCap's internal
+\code{__GROUPID__} entries are left out. The REDCap log only records times
+to the minute, so entries in the same minute are kept in REDCap's order.
 }
 \examples{
-audit_data <- get_audit_trail(
-  token = token,
-  study_name = "ExampleStudy"
-)
-
+\dontrun{
+atr_data <- get_audit_trail(keyring::key_get("STUDY_TOKEN"), "STUDY", "live")
+}
 }

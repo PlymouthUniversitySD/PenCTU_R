@@ -4,71 +4,73 @@
 \alias{get_redcap_exports}
 \title{Export multiple REDCap reports using metadata}
 \usage{
-get_redcap_exports(export_metadata, token, environment, study_name)
+get_redcap_exports(
+  export_metadata,
+  token,
+  environment,
+  study_name,
+  output_dir = file.path(path.expand("~"), "REDCap_exports", study_name),
+  overwrite = NULL,
+  script = NULL
+)
 }
 \arguments{
-\item{export_metadata}{A data frame containing export definitions. Must
-include the following columns:
-\itemize{
-\item \code{export_id}: REDCap report ID
-\item \code{export_name}: descriptive name for the export
-\item \code{format}: export format specification (\code{"raw"},
-\code{"labelled"}, or \code{"label_headers"})
-}}
+\item{export_metadata}{A data frame with columns \code{export_id} (REDCap
+report ID), \code{export_name} (used in the file name; letters, numbers,
+\code{_} and \code{-} only, and unique) and \code{format} (\code{"raw"},
+\code{"labelled"} or \code{"label_headers"}). Completely blank rows are
+ignored; any other incomplete row is an error.}
 
-\item{token}{A character string containing the REDCap API token with
-sufficient privileges to export the specified reports.}
+\item{token}{REDCap API token. Read it with \code{keyring::key_get()}.}
 
-\item{environment}{A character string specifying the target REDCap
-environment. Must be either \code{"live"} or \code{"test"}. Determines
-the API endpoint used for the export.}
+\item{environment}{\code{"live"} or \code{"test"}.}
 
-\item{study_name}{A character string used as a prefix for output file
-names to identify the study.}
+\item{study_name}{Study name used at the start of each file name.}
+
+\item{output_dir}{Folder to save the files in. Created if it does not exist.
+Must not be inside a Git repository. Defaults to
+\code{Documents/REDCap_exports/<study_name>}.}
+
+\item{overwrite}{\code{NULL} (default) asks (pop-up box in RStudio) before overwriting any of
+today's files; \code{TRUE} overwrites without asking; \code{FALSE} stops
+instead of overwriting.}
+
+\item{script}{Optional. Name and version of the script that ran this, e.g.
+"TEMPLATE_GetExports V2.1.0". It is added, with this function's name and
+version, to the export log (column generated_by). The report files are not changed.}
 }
 \value{
-Invisibly returns \code{NULL}. The primary side effect is the
-creation of CSV files in the working directory.
+Invisibly, the export log as a data frame: one row per export with
+\code{export_id}, \code{export_name}, \code{format}, \code{file},
+\code{status} ("Exported" or "Failed"), \code{rows}, \code{columns},
+\code{exported_at} and \code{message}.
 }
 \description{
-This function iterates over a metadata table of REDCap report definitions
-and programmatically exports each report via the REDCap API. Export
-parameters such as report ID and output formatting are derived from the
-supplied metadata. Each exported dataset is written to disk as a CSV file
-with a standardised filename incorporating the study name, report name,
-and execution date.
+Exports each REDCap report listed in a metadata table through the API and
+saves each one, exactly as REDCap sends it, as a CSV file named
+\code{study_name_export_name_YYYY-MM-DD.csv}. An export log
+(\code{study_name_ExportLog_YYYY-MM-DD.csv}) records what was exported.
 }
 \details{
-The function supports different REDCap environments (e.g. test vs live)
-and automatically maps metadata-defined export formats to the appropriate
-API parameters (\code{rawOrLabel} and \code{rawOrLabelHeaders}).
-
-For each row in \code{export_metadata}, the function constructs an API
-request using \code{httr::POST()} and retrieves the corresponding report
-in CSV format. The \code{format} column is used to determine how raw
-values and labels are handled:
-\itemize{
-\item \code{"raw"}: raw values for both data and headers
-\item \code{"labelled"}: labelled values for both data and headers
-\item \code{"label_headers"}: raw data with labelled headers
+The function works in three stages:
+\enumerate{
+\item Checks the inputs and the metadata, and stops with a clear message
+before anything is exported if something is wrong.
+\item If any of today's files already exist in \code{output_dir}, lists
+them and asks the user to confirm overwriting them (a pop-up box in
+RStudio; otherwise type Y in the console).
+\item Exports each report. If an export fails, the others still run; a
+warning at the end lists every export that failed.
 }
 
-Output files are named using the convention:
-\preformatted{
-study_name_export_name_YYYY-MM-DD.csv
-}
-
-If an API request fails (non-200 HTTP status), a warning is issued and
-processing continues with the next export.
+Formats: \code{"raw"} = raw values and raw column names;
+\code{"labelled"} = labels and labelled column names;
+\code{"label_headers"} = raw values and labelled column names. Checkbox
+fields are exported as "Checked"/"Unchecked" in labelled exports.
 }
 \examples{
 \dontrun{
-get_redcap_exports(
-  export_metadata = export_metadata,
-  token = token,
-  environment = "live",
-  study_name = "MyStudy"
-)
+get_redcap_exports(export_metadata, keyring::key_get("STUDY_TOKEN"),
+                   environment = "live", study_name = "STUDY")
 }
-
 }
