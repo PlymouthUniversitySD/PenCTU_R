@@ -1,6 +1,6 @@
 #Title: Get REDCap Exports Function
 #Author: Paigan Aspinall
-#Version & Date: V2.1.0 DDMMMYYYY
+#Version & Date: V2.1.0 03NOV2026
 #R version: 4.4.3
 
 #' Export multiple REDCap reports using metadata
