@@ -1,6 +1,6 @@
 #Title: Audit trail review
-#Author: Paigan Aspinall; V1.0.0 AI-drafted from the V1 ATR functions, see 1_code/atr_requirements.md
-#Version & Date: V1.0.0 DDMMMYYYY (DRAFT)
+#Author: Paigan Aspinall
+#Version & Date: V1.0.0 04NOV2026
 #R version: 4.4.3
 
 #' Unhelpful reasons for change
