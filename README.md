@@ -58,23 +58,13 @@ token <- keyring::key_get("STUDY_PURPOSE_TOKEN")
 | `missing_overdue_and_oow_timepoints()` | Shows, for each participant and timepoint, whether it was attended in or out of its window, is missing, did not take place or is no longer expected. |
 | `write_excel_completeness()` | Saves the data completeness report as an Excel workbook, with percentages coloured green, amber or red. |
 
-### atr_unhelpful_reasons()
-
-Returns the reasons for change that the audit trail review treats as unhelpful because they don't say why a value was changed, such as "corrected", "updated" or "n/a". Blank and one-character reasons are always unhelpful. Reasons are compared ignoring capitals, punctuation and spaces, so "Corrected." matches but "Corrected – weight was in lbs" doesn't. A study can add its own, for example `atr_unhelpful_reasons(add = c("as per query"))`. Used by `audit_trail_review()` and `TEMPLATE_ATR`.
-
-Specification: [specifications/audit_trail_review.md](specifications/audit_trail_review.md)
-
 ### audit_trail_review()
 
 Takes the audit trail from `get_audit_trail()` (one or more projects) and the data dictionary, and summarises staff edits on forms where a value changed. Data management, system and trial management fields and form status fields are left out. Each record's site comes from its DAG. Saves one Excel workbook, outside any GitHub repository, with a cover sheet for the review's findings and these sheets: Site Summary, Critical Data Items, Changes per User (by month), Unstable Fields, Time to Change, Out of Hours Changes, Reasons for Change and Deletions. Working hours, the time-to-change threshold and extra unhelpful reasons can be set by the study. Used by `TEMPLATE_ATR`.
 
-Specification: [specifications/audit_trail_review.md](specifications/audit_trail_review.md)
-
 ### build_nc_log()
 
 Works through a study's non-compliance (NC) presets, one row per NC rule, and finds the records where an NC has been triggered but not yet logged. It writes these to a date-stamped NC log file, then flags each record in REDCap so it isn't picked up again. Set `upload = FALSE` for a dry run that creates the log without saving the file or flagging any records. Used by `TEMPLATE_AutomatedNonCompliances`.
-
-Specification: [specifications/build_nc_log.md](specifications/build_nc_log.md)
 
 ### completeness_thresholds()
 
