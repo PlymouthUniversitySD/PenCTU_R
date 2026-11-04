@@ -61,7 +61,12 @@ for a first value.}
 \item{old_timestamp, new_timestamp}{When the old and new values were entered.}
 \item{change_type}{\code{"First value"}, \code{"Changed"} (includes
 clearing a value) or \code{"Unchanged"} (same value saved again).}
-\item{reason}{Reason for change, if one was given.}
+\item{reason}{Reason for change for this field. When REDCap's reason is in the
+one-line-per-field format written by PenCTU_ReasonForChange.js
+("field_name: reason"), this is the field's own reason, without the
+"field_name: " part (blank if the field is not listed). Otherwise it is
+the reason as REDCap saved it.}
+\item{log_reason}{The reason exactly as REDCap saved it.}
 \item{details}{REDCap's original list of data changes.}
 }
 }
