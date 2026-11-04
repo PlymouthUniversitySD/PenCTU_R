@@ -60,10 +60,6 @@ token <- keyring::key_get("STUDY_PURPOSE_TOKEN")
 | `rfc_exempt_fields()` | Lists the fields in a data dictionary that never need a reason for change. |
 | `write_excel_completeness()` | Saves the data completeness report as an Excel workbook, with percentages coloured green, amber or red. |
 
-### atr_unhelpful_reasons()
-
-Returns the reasons for change that the audit trail review treats as unhelpful because they don't say why a value was changed, such as "corrected", "updated" or "n/a". Blank and one-character reasons are always unhelpful. Reasons are compared ignoring capitals, punctuation and spaces, so "Corrected." matches but "Corrected – weight was in lbs" doesn't. A study can add its own, for example `atr_unhelpful_reasons(add = c("as per query"))`. Used by `audit_trail_review()` and `TEMPLATE_ATR`.
-
 ### audit_trail_review()
 
 Takes the audit trail from `get_audit_trail()` (one or more projects) and the data dictionary, and summarises staff edits on forms where a value changed. Data management, system and trial management fields and form status fields are left out. Each record's site comes from its DAG. Saves one Excel workbook, outside any GitHub repository, with a cover sheet for the review's findings and these sheets: Site Summary, Critical Data Items, Changes per User (by month), Unstable Fields, Time to Change, Out of Hours Changes, Reasons for Change and Deletions. Working hours, the time-to-change threshold and extra unhelpful reasons can be set by the study. Used by `TEMPLATE_ATR`.
@@ -71,10 +67,6 @@ Takes the audit trail from `get_audit_trail()` (one or more projects) and the da
 ### build_nc_log()
 
 Works through a study's non-compliance (NC) presets, one row per NC rule, and finds the records where an NC has been triggered but not yet logged. It writes these to a date-stamped NC log file, then flags each record in REDCap so it isn't picked up again. Set `upload = FALSE` for a dry run that creates the log without saving the file or flagging any records. Used by `TEMPLATE_AutomatedNonCompliances`.
-
-### build_rfc_script()
-
-Makes a study's copy of PenCTU_ReasonForChange.js, the REDCap JavaScript that asks for a reason for each changed field. It takes the validated script from the package, puts in the study's fields that never need a reason (from `rfc_exempt_fields()`), and adds a header naming the study, the script version and when it was made. Nothing else in the script is changed, and the function checks this. Run it again after any change to the data dictionary, then copy the file into the project's JavaScript Injector. Used by `TEMPLATE_ReasonForChange`.
 
 ### completeness_thresholds()
 
