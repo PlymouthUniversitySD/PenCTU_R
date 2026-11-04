@@ -48,6 +48,8 @@ token <- keyring::key_get("STUDY_PURPOSE_TOKEN")
 
 | Function | What it does |
 |---|---|
+| `atr_unhelpful_reasons()` | Gives the list of reasons for change that the audit trail review flags as unhelpful, with any the study adds. |
+| `audit_trail_review()` | Summarises staff changes in a REDCap audit trail by site, user, field and time, and saves the audit trail review workbook. |
 | `build_nc_log()` | Finds non-compliances that have not been logged yet, writes them to an NC log file and flags them in REDCap. |
 | `completeness_thresholds()` | Sets the green, amber and red thresholds used in the data completeness report. |
 | `completeness_tracker_data_prep()` | Exports a study's form statuses from REDCap and counts complete, partially complete and incomplete forms by event and site. |
@@ -56,11 +58,13 @@ token <- keyring::key_get("STUDY_PURPOSE_TOKEN")
 | `missing_overdue_and_oow_timepoints()` | Shows, for each participant and timepoint, whether it was attended in or out of its window, is missing, did not take place or is no longer expected. |
 | `write_excel_completeness()` | Saves the data completeness report as an Excel workbook, with percentages coloured green, amber or red. |
 
+### audit_trail_review()
+
+Takes the audit trail from `get_audit_trail()` (one or more projects) and the data dictionary, and summarises staff edits on forms where a value changed. Data management, system and trial management fields and form status fields are left out. Each record's site comes from its DAG. Saves one Excel workbook, outside any GitHub repository, with a cover sheet for the review's findings and these sheets: Site Summary, Critical Data Items, Changes per User (by month), Unstable Fields, Time to Change, Out of Hours Changes, Reasons for Change and Deletions. Working hours, the time-to-change threshold and extra unhelpful reasons can be set by the study. Used by `TEMPLATE_ATR`.
+
 ### build_nc_log()
 
 Works through a study's non-compliance (NC) presets, one row per NC rule, and finds the records where an NC has been triggered but not yet logged. It writes these to a date-stamped NC log file, then flags each record in REDCap so it isn't picked up again. Set `upload = FALSE` for a dry run that creates the log without saving the file or flagging any records. Used by `TEMPLATE_AutomatedNonCompliances`.
-
-Specification: [specifications/build_nc_log.md](specifications/build_nc_log.md)
 
 ### completeness_thresholds()
 
@@ -76,7 +80,7 @@ Specification: [specifications/data_completeness.md](specifications/data_complet
 
 ### get_audit_trail()
 
-Downloads the whole log of a REDCap project through the API. Each data entry is split into one row per field, with the value before and after the change, who made it, when, and the reason given. Entries that aren't data changes, such as exports and design changes, are kept as they are. A CSV is saved only if you ask for one, and never inside a GitHub repository. Used by the audit trail review (ATR) functions and `TEMPLATE_ATR`.
+Downloads the whole log of a REDCap project through the API. Each data entry is split into one row per field, with the value before and after the change, who made it, when, and the reason given. Entries that aren't data changes, such as exports and design changes, are kept as they are. A CSV is saved only if you ask for one, and never inside a GitHub repository. Used by `audit_trail_review()` and `TEMPLATE_ATR`.
 
 Specification: [specifications/get_audit_trail.md](specifications/get_audit_trail.md)
 

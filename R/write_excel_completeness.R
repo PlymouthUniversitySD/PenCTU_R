@@ -1,794 +1,212 @@
-#' Write Data Completeness Worksheet
-#'
-#' Adds a formatted data-completeness worksheet to an existing Excel workbook.
-#' The worksheet summarises form-completion status by site and presents both
-#' form-level counts and site-level percentages for each completion status.
-#'
-#' The worksheet is structured dynamically according to the number of forms,
-#' sites, and completion statuses supplied. Site headings are merged across the
-#' associated status columns, with participant or form-instance counts displayed
-#' beneath each site heading.
-#'
-#' The \code{statuses} argument must contain exactly three values in the
-#' following order:
-#'
-#' \enumerate{
-#'   \item The label used for incomplete forms
-#'   \item The label used for unverified or partially complete forms
-#'   \item The label used for complete forms
-#' }
-#'
-#' The function writes:
-#'
-#' \itemize{
-#'   \item The REDCap timepoint or worksheet name
-#'   \item The total number of forms included in the summary
-#'   \item The number of records or non-repeating instances for each site
-#'   \item Form-level counts for each site and completion status
-#'   \item The percentage distribution of completion statuses within each site
-#' }
-#'
-#' Site-level record or instance counts are calculated directly from
-#' \code{raw_data}. Repeat-instance rows can optionally be excluded from this
-#' calculation. When \code{exclude_repeat_instances = TRUE}, rows where
-#' \code{redcap_repeat_instance} is equal to or greater than \code{1} are
-#' removed before the site counts are calculated.
-#'
-#' Rows where \code{redcap_repeat_instance} is missing, blank, or equal to
-#' \code{0} are retained. If repeat instances are to be excluded,
-#' \code{raw_data} must contain a \code{redcap_repeat_instance} column.
-#'
-#' Records without a REDCap Data Access Group are assigned to the
-#' \code{"Unknown"} site category. Sites without any records are retained and
-#' assigned a count of zero.
-#'
-#' Percentage calculations are written to Excel as formulas. For each site, the
-#' denominator is the sum of all completion-status counts across all included
-#' forms. The numerator is the sum of the selected status column across those
-#' forms. This produces the percentage of form instances classified under each
-#' completion status for that site.
-#'
-#' Conditional formatting is applied according to the position of each status
-#' within \code{statuses}, rather than the text of the status label. This allows
-#' customised display labels to be used.
-#'
-#' The following thresholds are applied:
-#'
-#' \describe{
-#'   \item{Third status: complete}{
-#'     Green where completion is at least 85 percent; amber where completion is
-#'     at least 75 percent but below 85 percent; and red where completion is
-#'     below 75 percent.
-#'   }
-#'   \item{Second status: unverified or partially complete}{
-#'     Green where the percentage is no more than 15 percent; amber where the
-#'     percentage is above 15 percent and no more than 25 percent; and red where
-#'     the percentage is above 25 percent.
-#'   }
-#'   \item{First status: incomplete}{
-#'     Green where the percentage is no more than 15 percent; amber where the
-#'     percentage is above 15 percent and no more than 25 percent; and red where
-#'     the percentage is above 25 percent.
-#'   }
-#' }
-#'
-#' The function modifies the supplied workbook by reference and does not return
-#' a separate worksheet object.
-#'
-#' @param wb An \code{openxlsx} workbook object to which the worksheet will be
-#'   added.
-#'
-#' @param sheet_name A character string specifying the worksheet name. This
-#'   value is also displayed as the worksheet timepoint.
-#'
-#' @param summary_table A data frame or matrix containing one row per form and
-#'   one column for each site-status combination. The first column should
-#'   contain the form name or form label.
-#'
-#' @param raw_data A data frame containing the underlying REDCap records used
-#'   to calculate the number of records or instances by site. The dataset must
-#'   contain a \code{redcap_data_access_group} column. When
-#'   \code{exclude_repeat_instances = TRUE}, it must also contain a
-#'   \code{redcap_repeat_instance} column.
-#'
-#' @param sites A character vector defining the sites to display and their
-#'   ordering within the worksheet. Include \code{"Unknown"} where records
-#'   without a Data Access Group should be represented explicitly.
-#'
-#' @param statuses A character vector containing exactly three completion-status
-#'   display labels. Values must be supplied in the following order:
-#'   incomplete, unverified or partially complete, and complete.
-#'
-#' @param exclude_repeat_instances A logical value indicating whether repeating
-#'   rows should be excluded from the site-level record or instance counts.
-#'   When \code{TRUE}, rows with a \code{redcap_repeat_instance} value of
-#'   \code{1} or greater are removed. Defaults to \code{FALSE}.
-#'
-#' @return Invisibly modifies \code{wb} by adding and formatting the requested
-#'   worksheet. No explicit value is returned.
-#'
-#' @examples
-#' wb <- openxlsx::createWorkbook()
-#'
-#' write_excel_completeness(
-#'   wb = wb,
-#'   sheet_name = "Week 12",
-#'   summary_table = week_12_summary,
-#'   raw_data = week_12_data,
-#'   sites = c(
-#'     "Site 1",
-#'     "Site 2",
-#'     "Unknown"
-#'   ),
-#'   statuses = c(
-#'     "Incomplete",
-#'     "Partially complete",
-#'     "Complete"
-#'   ),
-#'   exclude_repeat_instances = TRUE
-#' )
-#'
-#' openxlsx::saveWorkbook(
-#'   wb,
-#'   "Data_Completeness_Report.xlsx",
-#'   overwrite = TRUE
-#' )
-#'
-#' @export
+#Title: write_excel_completeness (with completeness_thresholds and completeness_ratings)
+#Version & Date: V2.0.0 03NOV2026
+#Author: Paigan Aspinall
+#R version: 4.4.3
 
-write_excel_completeness <- function(
-    wb,
-    sheet_name,
-    summary_table,
-    raw_data,
-    sites,
-    statuses,
-    exclude_repeat_instances = FALSE
-) {
-  
-  # ---------- Validate arguments ----------
-  
-  if (length(statuses) != 3) {
-    stop(
-      "`statuses` must contain exactly three values in this order: ",
-      "Incomplete, Unverified, Complete."
-    )
+#' Red/amber/green thresholds for the data completeness report
+#'
+#' Proportions (0 to 1). Complete: green at or above \code{complete_green}, amber
+#' at or above \code{complete_amber}, otherwise red. Partially complete and
+#' incomplete: green at or below \code{*_green}, amber at or below \code{*_amber},
+#' otherwise red.
+#' @export
+completeness_thresholds <- function(complete_green = 0.85, complete_amber = 0.75,
+                                    partial_green = 0.15, partial_amber = 0.25,
+                                    incomplete_green = 0.15, incomplete_amber = 0.25) {
+  v <- c(complete_green = complete_green, complete_amber = complete_amber, partial_green = partial_green,
+         partial_amber = partial_amber, incomplete_green = incomplete_green, incomplete_amber = incomplete_amber)
+  if (any(!is.finite(v)) || any(v < 0 | v > 1)) stop("Thresholds must be proportions between 0 and 1 (e.g. 0.85 for 85%).")
+  if (complete_amber > complete_green) stop("complete_amber must not be higher than complete_green.")
+  if (partial_green > partial_amber) stop("partial_green must not be higher than partial_amber.")
+  if (incomplete_green > incomplete_amber) stop("incomplete_green must not be higher than incomplete_amber.")
+  structure(as.list(v), class = "completeness_thresholds")
+}
+
+#' Counts, percentages and ratings for each form at each site
+#'
+#' One row per event, form and site, plus an "All forms" row per event and site.
+#' Percentages use the exact proportion (not rounded) when rated.
+#' @export
+completeness_ratings <- function(completeness, thresholds = completeness_thresholds()) {
+  if (!inherits(completeness, "completeness_data")) stop("completeness must come from completeness_tracker_data_prep().")
+  if (!inherits(thresholds, "completeness_thresholds")) stop("thresholds must come from completeness_thresholds().")
+  tol <- 1e-9
+  rate_high <- function(p, green, amber) ifelse(is.na(p), NA, ifelse(p >= green - tol, "Green", ifelse(p >= amber - tol, "Amber", "Red")))
+  rate_low  <- function(p, green, amber) ifelse(is.na(p), NA, ifelse(p <= green + tol, "Green", ifelse(p <= amber + tol, "Amber", "Red")))
+  x <- completeness$counts
+  if (nrow(x) == 0) return(data.frame())
+  key <- paste(x$event, x$form, x$site, sep = "\r")
+  w <- data.frame(event = tapply(x$event, key, `[`, 1), form = tapply(x$form, key, `[`, 1),
+                  site = tapply(x$site, key, `[`, 1),
+                  complete = tapply(x$n * (x$status == "Complete"), key, sum),
+                  partial = tapply(x$n * (x$status == "Partially complete"), key, sum),
+                  incomplete = tapply(x$n * (x$status == "Incomplete"), key, sum), stringsAsFactors = FALSE)
+  allf <- stats::aggregate(cbind(complete, partial, incomplete) ~ event + site, data = w, FUN = sum)
+  allf$form <- "All forms"
+  w <- rbind(w[, names(allf)], allf[, names(allf)])
+  w$instances <- w$complete + w$partial + w$incomplete
+  pct <- function(n) ifelse(w$instances > 0, n / w$instances, NA)
+  w$pct_complete <- pct(w$complete); w$pct_partial <- pct(w$partial); w$pct_incomplete <- pct(w$incomplete)
+  t <- thresholds
+  w$rating_complete <- rate_high(w$pct_complete, t$complete_green, t$complete_amber)
+  w$rating_partial <- rate_low(w$pct_partial, t$partial_green, t$partial_amber)
+  w$rating_incomplete <- rate_low(w$pct_incomplete, t$incomplete_green, t$incomplete_amber)
+  # order: events, then forms in the report's order with "All forms" last, then sites
+  ev_ord <- match(w$event, completeness$settings$events)
+  f_ord <- mapply(function(e, f) if (f == "All forms") 1e6 else match(f, completeness$forms_by_event[[e]]), w$event, w$form)
+  w <- w[order(ev_ord, f_ord, match(w$site, completeness$sites)), ]
+  rownames(w) <- NULL
+  w[, c("event", "form", "site", "instances", "complete", "partial", "incomplete",
+        "pct_complete", "pct_partial", "pct_incomplete", "rating_complete", "rating_partial", "rating_incomplete")]
+}
+
+#' Write the data completeness workbook
+#'
+#' Saves one Excel workbook: a cover sheet, then one sheet per event showing, for
+#' each form and site, the number of instances and the number and percentage
+#' complete, partially complete and incomplete, coloured red/amber/green.
+#'
+#' @param completeness Output of \code{completeness_tracker_data_prep()}.
+#' @param study_name Study name for the file name and cover sheet (letters,
+#'   numbers, _ and - only).
+#' @param output_dir Folder to save in (created if needed). Must not be inside a
+#'   Git repository.
+#' @param thresholds Output of \code{completeness_thresholds()}.
+#' @param script Name and version of the script that ran this, shown on the cover
+#'   sheet (e.g. "TEMPLATE_DataCompleteness V2.0.0").
+#' @return Invisibly, a list with the file path and the ratings table.
+#' @export
+write_excel_completeness <- function(completeness, study_name, output_dir,
+                                     thresholds = completeness_thresholds(), script = "") {
+  version <- "2.0.0"
+  if (!inherits(completeness, "completeness_data")) stop("completeness must come from completeness_tracker_data_prep().")
+  if (length(study_name) != 1 || is.na(study_name) || !grepl("^[A-Za-z0-9_-]+$", study_name)) {
+    stop("study_name must contain only letters, numbers, _ and -.")
   }
-  
-  if (
-    !is.logical(exclude_repeat_instances) ||
-    length(exclude_repeat_instances) != 1 ||
-    is.na(exclude_repeat_instances)
-  ) {
-    stop(
-      "`exclude_repeat_instances` must be a single TRUE or FALSE value."
-    )
+  if (missing(output_dir) || length(output_dir) != 1 || is.na(output_dir) || trimws(output_dir) == "") {
+    stop("output_dir is needed: the folder to save the report in (outside any GitHub repository).")
   }
-  
-  if (!"redcap_data_access_group" %in% names(raw_data)) {
-    stop(
-      "`raw_data` must contain a `redcap_data_access_group` column."
-    )
-  }
-  
-  if (
-    exclude_repeat_instances &&
-    !"redcap_repeat_instance" %in% names(raw_data)
-  ) {
-    stop(
-      "`exclude_repeat_instances` is TRUE, but `raw_data` does not ",
-      "contain a `redcap_repeat_instance` column."
-    )
-  }
-  
-  # ---------- Add worksheet ----------
-  
-  openxlsx::addWorksheet(
-    wb,
-    sheet_name
-  )
-  
-  # ---------- Styles ----------
-  
-  hs1 <- openxlsx::createStyle(
-    fgFill = "#FFDAB9",
-    halign = "CENTER",
-    textDecoration = "Bold",
-    border = "TopLeftRightBottom"
-  )
-  
-  hs2 <- openxlsx::createStyle(
-    halign = "CENTER",
-    border = "TopLeftRightBottom"
-  )
-  
-  percent_style <- openxlsx::createStyle(
-    numFmt = "0.0%",
-    halign = "CENTER",
-    border = "TopLeftRightBottom"
-  )
-  
-  red_style <- openxlsx::createStyle(
-    fontColour = "#9C0006",
-    bgFill = "#FFC7CE"
-  )
-  
-  amber_style <- openxlsx::createStyle(
-    fontColour = "#9C6500",
-    bgFill = "#FFEB9C"
-  )
-  
-  green_style <- openxlsx::createStyle(
-    fontColour = "#006600",
-    bgFill = "#acd7b5"
-  )
-  
-  # ---------- Dynamic layout ----------
-  
-  n_forms <- nrow(summary_table)
-  
-  header_row_site   <- 3
-  participant_row   <- 4
-  header_row_status <- 5
-  
-  data_start_row <- 6
-  data_end_row   <- data_start_row + n_forms - 1
-  
-  # Percentage row immediately after the form data
-  percent_row <- data_end_row + 1
-  
-  # Table width: form column plus one column per site-status combination
-  last_col <- 1 + length(sites) * length(statuses)
-  
-  # ---------- Header content ----------
-  
-  header_row1 <- c(
-    "Forms",
-    rep(
-      sites,
-      each = length(statuses)
-    )
-  )
-  
-  header_row2 <- c(
-    "",
-    rep(
-      statuses,
-      times = length(sites)
-    )
-  )
-  
-  # ---------- Top information ----------
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    "Timepoint:",
-    startRow = 1,
-    startCol = 1,
-    colNames = FALSE
-  )
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    sheet_name,
-    startRow = 1,
-    startCol = 2,
-    colNames = FALSE
-  )
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    "Number of forms:",
-    startRow = 2,
-    startCol = 1,
-    colNames = FALSE
-  )
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    n_forms,
-    startRow = 2,
-    startCol = 2,
-    colNames = FALSE
-  )
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    "Number of instances completed:",
-    startRow = participant_row,
-    startCol = 1,
-    colNames = FALSE
-  )
-  
-  # Merge the top information cells across the table width
-  openxlsx::mergeCells(
-    wb,
-    sheet_name,
-    cols = 2:last_col,
-    rows = 1
-  )
-  
-  openxlsx::mergeCells(
-    wb,
-    sheet_name,
-    cols = 2:last_col,
-    rows = 2
-  )
-  
-  # ---------- Prepare data used for site counts ----------
-  
-  count_data <- raw_data
-  
-  if (exclude_repeat_instances) {
-    
-    count_data <- count_data %>%
-      dplyr::mutate(
-        .repeat_instance = suppressWarnings(
-          as.numeric(
-            stringr::str_trim(
-              as.character(redcap_repeat_instance)
-            )
-          )
-        )
-      ) %>%
-      dplyr::filter(
-        is.na(.repeat_instance) |
-          .repeat_instance < 1
-      ) %>%
-      dplyr::select(-.repeat_instance)
-  }
-  
-  # ---------- Calculate site-level counts ----------
-  
-  participant_counts <- count_data %>%
-    dplyr::mutate(
-      redcap_data_access_group = dplyr::if_else(
-        is.na(redcap_data_access_group) |
-          stringr::str_trim(
-            as.character(redcap_data_access_group)
-          ) == "",
-        "Unknown",
-        as.character(redcap_data_access_group)
-      )
-    ) %>%
-    dplyr::count(
-      redcap_data_access_group,
-      name = "n"
-    ) %>%
-    tidyr::complete(
-      redcap_data_access_group = sites,
-      fill = list(n = 0)
-    ) %>%
-    dplyr::arrange(
-      factor(
-        redcap_data_access_group,
-        levels = sites
-      )
-    )
-  
-  # ---------- Write site-level counts ----------
-  
-  col_index <- 2
-  
-  for (site in sites) {
-    
-    n_site <- participant_counts$n[
-      participant_counts$redcap_data_access_group == site
-    ]
-    
-    if (length(n_site) == 0) {
-      n_site <- 0
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(output_dir)) stop("Could not create output_dir: ", output_dir)
+  out_abs <- normalizePath(output_dir, winslash = "/")
+  d <- out_abs
+  repeat {
+    if (file.exists(file.path(d, ".git"))) {
+      stop("output_dir is inside a Git repository (", d, "). Save the report outside any repository.")
     }
-    
-    openxlsx::mergeCells(
-      wb,
-      sheet_name,
-      cols = col_index:(col_index + length(statuses) - 1),
-      rows = participant_row
-    )
-    
-    openxlsx::writeData(
-      wb,
-      sheet_name,
-      x = n_site,
-      startCol = col_index,
-      startRow = participant_row,
-      colNames = FALSE
-    )
-    
-    openxlsx::addStyle(
-      wb,
-      sheet_name,
-      style = hs2,
-      rows = participant_row,
-      cols = col_index:(col_index + length(statuses) - 1),
-      gridExpand = TRUE
-    )
-    
-    col_index <- col_index + length(statuses)
+    parent <- dirname(d); if (parent == d) break; d <- parent
   }
-  
-  # ---------- Write header rows ----------
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    t(as.data.frame(header_row1)),
-    startRow = header_row_site,
-    startCol = 1,
-    colNames = FALSE
-  )
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    t(as.data.frame(header_row2)),
-    startRow = header_row_status,
-    startCol = 1,
-    colNames = FALSE
-  )
-  
-  # ---------- Write summary table ----------
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    summary_table,
-    startRow = data_start_row,
-    startCol = 1,
-    colNames = FALSE
-  )
-  
-  # ---------- Merge site headings ----------
-  
-  col_index <- 2
-  
-  for (site in sites) {
-    
-    openxlsx::mergeCells(
-      wb,
-      sheet_name,
-      cols = col_index:(col_index + length(statuses) - 1),
-      rows = header_row_site
-    )
-    
-    col_index <- col_index + length(statuses)
-  }
-  
-  # ---------- Apply worksheet styles ----------
-  
-  openxlsx::addStyle(
-    wb,
-    sheet_name,
-    hs1,
-    rows = 1,
-    cols = 1:last_col,
-    gridExpand = TRUE
-  )
-  
-  openxlsx::addStyle(
-    wb,
-    sheet_name,
-    hs1,
-    rows = 2,
-    cols = 1,
-    gridExpand = TRUE
-  )
-  
-  openxlsx::addStyle(
-    wb,
-    sheet_name,
-    hs2,
-    rows = 2,
-    cols = 2:last_col,
-    gridExpand = TRUE
-  )
-  
-  openxlsx::addStyle(
-    wb,
-    sheet_name,
-    hs1,
-    rows = header_row_site,
-    cols = 1:last_col,
-    gridExpand = TRUE
-  )
-  
-  openxlsx::addStyle(
-    wb,
-    sheet_name,
-    hs1,
-    rows = participant_row,
-    cols = 1,
-    gridExpand = TRUE
-  )
-  
-  openxlsx::addStyle(
-    wb,
-    sheet_name,
-    hs1,
-    rows = header_row_status,
-    cols = 1:last_col,
-    gridExpand = TRUE
-  )
-  
-  # ---------- Percentage row ----------
-  
-  openxlsx::writeData(
-    wb,
-    sheet_name,
-    "Percentage of forms by status:",
-    startRow = percent_row,
-    startCol = 1,
-    colNames = FALSE
-  )
-  
-  openxlsx::addStyle(
-    wb,
-    sheet_name,
-    style = hs1,
-    rows = percent_row,
-    cols = 1,
-    gridExpand = TRUE
-  )
-  
-  # Percentage for each status:
-  # sum of status column divided by sum of all status columns for that site
-  for (site_index in seq_along(sites)) {
-    
-    site_start_col <- 2 +
-      (site_index - 1) * length(statuses)
-    
-    site_end_col <- site_start_col +
-      length(statuses) - 1
-    
-    site_start_letter <- openxlsx::int2col(
-      site_start_col
-    )
-    
-    site_end_letter <- openxlsx::int2col(
-      site_end_col
-    )
-    
-    denominator_range <- paste0(
-      site_start_letter,
-      data_start_row,
-      ":",
-      site_end_letter,
-      data_end_row
-    )
-    
-    for (status_index in seq_along(statuses)) {
-      
-      current_col <- site_start_col +
-        status_index - 1
-      
-      current_col_letter <- openxlsx::int2col(
-        current_col
-      )
-      
-      numerator_range <- paste0(
-        current_col_letter,
-        data_start_row,
-        ":",
-        current_col_letter,
-        data_end_row
-      )
-      
-      formula <- paste0(
-        "IFERROR(ROUND(SUM(",
-        numerator_range,
-        ")/SUM(",
-        denominator_range,
-        "),2),0)"
-      )
-      
-      openxlsx::writeFormula(
-        wb,
-        sheet = sheet_name,
-        x = formula,
-        startCol = current_col,
-        startRow = percent_row
-      )
-      
-      openxlsx::addStyle(
-        wb,
-        sheet_name,
-        style = percent_style,
-        rows = percent_row,
-        cols = current_col,
-        gridExpand = TRUE
-      )
+  r <- completeness_ratings(completeness, thresholds)
+  s <- completeness$settings
+  t <- thresholds
+  # percentages shown to 1 decimal place, rounding halves up (e.g. 81.25% shows as 81.3%)
+  pc <- function(p) ifelse(is.na(p), "", sprintf("%.1f%%", floor(1000 * p + 0.5 + 1e-9) / 10))
+
+  wb <- openxlsx::createWorkbook()
+  bold <- openxlsx::createStyle(textDecoration = "bold")
+  head <- openxlsx::createStyle(textDecoration = "bold", fgFill = "#D9D9D9", border = "TopBottomLeftRight",
+                                halign = "center", valign = "center", wrapText = TRUE)
+  cell <- openxlsx::createStyle(border = "TopBottomLeftRight", halign = "center")
+  left <- openxlsx::createStyle(border = "TopBottomLeftRight", wrapText = TRUE, valign = "top")
+  fills <- list(Green = openxlsx::createStyle(fgFill = "#C6EFCE", fontColour = "#006100", border = "TopBottomLeftRight", halign = "center"),
+                Amber = openxlsx::createStyle(fgFill = "#FFEB9C", fontColour = "#9C5700", border = "TopBottomLeftRight", halign = "center"),
+                Red   = openxlsx::createStyle(fgFill = "#FFC7CE", fontColour = "#9C0006", border = "TopBottomLeftRight", halign = "center"))
+
+  # ---- Cover sheet ----
+  openxlsx::addWorksheet(wb, "Cover")
+  ev_lab <- paste0(completeness$events$event_name, " (", completeness$events$unique_event_name, ")")
+  cover <- data.frame(Item = c(
+    "Report", "Study", "REDCap project", "Environment", "Data exported", "Report saved by",
+    "Script", "Functions", "Events included", "Forms left out", "Forms counted only where started",
+    "Timepoints file (timepoints not taken place left out)", "Thresholds: complete",
+    "Thresholds: partially complete", "Thresholds: incomplete", "How forms are counted"),
+    Value = c(
+      "Data completeness report", study_name, s$project_title, s$environment,
+      format(s$export_time, "%d %b %Y %H:%M"), Sys.info()[["user"]],
+      if (nzchar(script)) script else "(not given)",
+      paste0("completeness_tracker_data_prep V", s$version, "; write_excel_completeness V", version),
+      paste(ev_lab, collapse = "; "),
+      if (length(s$exclude_forms)) paste(s$exclude_forms, collapse = ", ") else "None",
+      if (length(s$as_needed_forms)) paste(s$as_needed_forms, collapse = ", ") else "None",
+      if (s$timepoints == "none") "Not used" else s$timepoints,
+      sprintf("Green %s or more; amber %s to under %s; red under %s", pc(t$complete_green), pc(t$complete_amber), pc(t$complete_green), pc(t$complete_amber)),
+      sprintf("Green %s or less; amber over %s to %s; red over %s", pc(t$partial_green), pc(t$partial_green), pc(t$partial_amber), pc(t$partial_amber)),
+      sprintf("Green %s or less; amber over %s to %s; red over %s", pc(t$incomplete_green), pc(t$incomplete_green), pc(t$incomplete_amber), pc(t$incomplete_amber)),
+      paste("Only participants with data at an event are counted. Every instance of a repeating form or event is counted.",
+            "Partially complete = REDCap 'Unverified'. A form with no status counts as incomplete,",
+            "except forms counted only where started. Records with no data access group are shown as 'Unknown';",
+            "a project with no data access groups is shown as one group, 'All participants'.")),
+    stringsAsFactors = FALSE)
+  openxlsx::writeData(wb, "Cover", cover, headerStyle = head)
+  openxlsx::addStyle(wb, "Cover", left, rows = 2:(nrow(cover) + 1), cols = 1:2, gridExpand = TRUE)
+  openxlsx::addStyle(wb, "Cover", openxlsx::createStyle(textDecoration = "bold", border = "TopBottomLeftRight", valign = "top", wrapText = TRUE),
+                     rows = 2:(nrow(cover) + 1), cols = 1)
+  openxlsx::setColWidths(wb, "Cover", cols = 1:2, widths = c(40, 100))
+
+  # ---- One sheet per event ----
+  used <- "Cover"
+  sites <- completeness$sites
+  for (i in seq_len(nrow(completeness$events))) {
+    e <- completeness$events$unique_event_name[i]
+    nm <- substr(gsub("[][*?/\\\\:]", "-", completeness$events$event_name[i]), 1, 28)
+    base <- nm; k <- 2
+    while (tolower(nm) %in% tolower(used)) { nm <- paste0(substr(base, 1, 25), " (", k, ")"); k <- k + 1 }
+    used <- c(used, nm)
+    openxlsx::addWorksheet(wb, nm)
+    openxlsx::writeData(wb, nm, paste0(completeness$events$event_name[i], " (", e, ")"), startRow = 1)
+    openxlsx::addStyle(wb, nm, openxlsx::createStyle(textDecoration = "bold", fontSize = 13), rows = 1, cols = 1)
+    p <- completeness$participants[completeness$participants$event == e, ]
+    openxlsx::writeData(wb, nm, "Participants counted:", startRow = 3)
+    openxlsx::writeData(wb, nm, "Timepoints left out (not taken place):", startRow = 4)
+    openxlsx::addStyle(wb, nm, bold, rows = 3:4, cols = 1)
+    # header
+    openxlsx::writeData(wb, nm, "Form", startRow = 6, startCol = 1)
+    openxlsx::mergeCells(wb, nm, cols = 1, rows = 6:7)
+    for (j in seq_along(sites)) {
+      c0 <- 2 + (j - 1) * 4
+      openxlsx::writeData(wb, nm, sites[j], startRow = 6, startCol = c0)
+      openxlsx::mergeCells(wb, nm, cols = c0:(c0 + 3), rows = 6)
+      openxlsx::writeData(wb, nm, t(c("Instances", "Complete", "Partially complete", "Incomplete")),
+                          startRow = 7, startCol = c0, colNames = FALSE)
+      openxlsx::writeData(wb, nm, p$participants[p$site == sites[j]], startRow = 3, startCol = c0)
+      openxlsx::writeData(wb, nm, p$left_out[p$site == sites[j]], startRow = 4, startCol = c0)
+      openxlsx::mergeCells(wb, nm, cols = c0:(c0 + 3), rows = 3)
+      openxlsx::mergeCells(wb, nm, cols = c0:(c0 + 3), rows = 4)
+      openxlsx::addStyle(wb, nm, cell, rows = 3:4, cols = c0:(c0 + 3), gridExpand = TRUE)
     }
-  }
-  
-  # ---------- Conditional formatting ----------
-  
-  col_index <- 2
-  
-  for (site_index in seq_along(sites)) {
-    
-    for (status_index in seq_along(statuses)) {
-      
-      current_col <- col_index +
-        status_index - 1
-      
-      col_letter <- openxlsx::int2col(
-        current_col
-      )
-      
-      # First status: incomplete
-      if (status_index == 1) {
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=",
-            col_letter,
-            percent_row,
-            ">0.25"
-          ),
-          type = "expression",
-          style = red_style
-        )
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=AND(",
-            col_letter,
-            percent_row,
-            ">0.15,",
-            col_letter,
-            percent_row,
-            "<=0.25)"
-          ),
-          type = "expression",
-          style = amber_style
-        )
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=",
-            col_letter,
-            percent_row,
-            "<=0.15"
-          ),
-          type = "expression",
-          style = green_style
-        )
-      }
-      
-      # Second status: unverified or partially complete
-      if (status_index == 2) {
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=",
-            col_letter,
-            percent_row,
-            ">0.25"
-          ),
-          type = "expression",
-          style = red_style
-        )
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=AND(",
-            col_letter,
-            percent_row,
-            ">0.15,",
-            col_letter,
-            percent_row,
-            "<=0.25)"
-          ),
-          type = "expression",
-          style = amber_style
-        )
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=",
-            col_letter,
-            percent_row,
-            "<=0.15"
-          ),
-          type = "expression",
-          style = green_style
-        )
-      }
-      
-      # Third status: complete
-      if (status_index == 3) {
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=",
-            col_letter,
-            percent_row,
-            "<0.75"
-          ),
-          type = "expression",
-          style = red_style
-        )
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=AND(",
-            col_letter,
-            percent_row,
-            ">=0.75,",
-            col_letter,
-            percent_row,
-            "<0.85)"
-          ),
-          type = "expression",
-          style = amber_style
-        )
-        
-        openxlsx::conditionalFormatting(
-          wb,
-          sheet_name,
-          cols = current_col,
-          rows = percent_row,
-          rule = paste0(
-            "=",
-            col_letter,
-            percent_row,
-            ">=0.85"
-          ),
-          type = "expression",
-          style = green_style
-        )
+    last_col <- 1 + 4 * length(sites)
+    openxlsx::addStyle(wb, nm, head, rows = 6:7, cols = 1:last_col, gridExpand = TRUE)
+    # body
+    forms <- c(completeness$forms_by_event[[e]], "All forms")
+    labels <- completeness$forms$label[match(forms, completeness$forms$form)]
+    labels[forms == "All forms"] <- "All forms"
+    for (fi in seq_along(forms)) {
+      row <- 7 + fi
+      openxlsx::writeData(wb, nm, labels[fi], startRow = row, startCol = 1)
+      openxlsx::addStyle(wb, nm, if (forms[fi] == "All forms") openxlsx::createStyle(textDecoration = "bold", border = "TopBottomLeftRight") else left,
+                         rows = row, cols = 1)
+      for (j in seq_along(sites)) {
+        c0 <- 2 + (j - 1) * 4
+        x <- r[r$event == e & r$form == forms[fi] & r$site == sites[j], ]
+        vals <- c(x$instances,
+                  if (x$instances > 0) sprintf("%d (%s)", c(x$complete, x$partial, x$incomplete),
+                                               pc(c(x$pct_complete, x$pct_partial, x$pct_incomplete))) else rep("-", 3))
+        openxlsx::writeData(wb, nm, t(vals), startRow = row, startCol = c0, colNames = FALSE)
+        openxlsx::addStyle(wb, nm, cell, rows = row, cols = c0)
+        rat <- c(x$rating_complete, x$rating_partial, x$rating_incomplete)
+        for (q in 1:3) {
+          openxlsx::addStyle(wb, nm, if (is.na(rat[q])) cell else fills[[rat[q]]], rows = row, cols = c0 + q)
+        }
       }
     }
-    
-    col_index <- col_index + length(statuses)
+    openxlsx::setColWidths(wb, nm, cols = 1, widths = 34)
+    openxlsx::setColWidths(wb, nm, cols = 2:last_col, widths = 13)
+    openxlsx::freezePane(wb, nm, firstActiveRow = 8, firstActiveCol = 2)
+    openxlsx::pageSetup(wb, nm, orientation = "landscape", fitToWidth = TRUE, fitToHeight = FALSE)
   }
-  
-  # ---------- Column widths ----------
-  
-  openxlsx::setColWidths(
-    wb,
-    sheet = sheet_name,
-    cols = 1:last_col,
-    widths = "auto"
-  )
-  
-  invisible(wb)
+
+  f <- file.path(out_abs, paste0(study_name, "_DataCompleteness_", format(Sys.time(), "%Y-%m-%d_%H%M"), ".xlsx"))
+  openxlsx::saveWorkbook(wb, f, overwrite = TRUE)
+  message("Data completeness report saved: ", f)
+  invisible(list(file = f, ratings = r))
 }
