@@ -1,6 +1,6 @@
 #Title: Missing, Overdue and Out-Of-Window Timepoints
-#Author: Eduard Mazuru V2.0.0 
-#Version & Date: V2.0.0 DDMMMYYYY (DRAFT)
+#Author: Eduard Mazuru 
+#Version & Date: V2.0.0 04NOV2026
 #R version: 4.4.3
 #' Missing, overdue and out-of-window timepoints
 #'
