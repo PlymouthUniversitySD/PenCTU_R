@@ -1,6 +1,6 @@
 #Title: Get processed audit trail data
 #Author: Paigan Aspinall
-#Version & Date: V2.1.0 03NOV2026
+#Version & Date: V3.0.0 04NOV2026
 #R version: 4.4.3
 
 #' Download and process a REDCap audit trail (logging)
@@ -56,7 +56,12 @@
 #'     \item{old_timestamp, new_timestamp}{When the old and new values were entered.}
 #'     \item{change_type}{\code{"First value"}, \code{"Changed"} (includes
 #'       clearing a value) or \code{"Unchanged"} (same value saved again).}
-#'     \item{reason}{Reason for change, if one was given.}
+#'     \item{reason}{Reason for change for this field. When REDCap's reason is in the
+#'       one-line-per-field format written by PenCTU_ReasonForChange.js
+#'       ("field_name: reason"), this is the field's own reason, without the
+#'       "field_name: " part (blank if the field is not listed). Otherwise it is
+#'       the reason as REDCap saved it.}
+#'     \item{log_reason}{The reason exactly as REDCap saved it.}
 #'     \item{details}{REDCap's original list of data changes.}
 #'   }
 #'
@@ -80,7 +85,7 @@ get_audit_trail <- function(token, study_name, environment, end_time = "",
                             script = NULL) {
 
   # ---- Name and version of this function (and the script that ran it), added to the output ----
-  version <- "2.1.0"
+  version <- "3.0.0"
   if (!is.null(script) && (length(script) != 1 || is.na(script) || !is.character(script))) {
     stop("script must be a single piece of text, e.g. \"TEMPLATE_X V2.1.0\", or left out.")
   }
@@ -90,6 +95,32 @@ get_audit_trail <- function(token, study_name, environment, end_time = "",
   urls <- c(live = "https://clinicaltrials.plymouth.ac.uk/api/",
             test = "https://clinicaltrials-pre.plymouth.ac.uk/api/")
   blank <- function(x) is.na(x) | trimws(as.character(x)) == ""
+
+  # V3.0.0: split a reason written one line per field ("field_name: reason", as saved by
+  # PenCTU_ReasonForChange.js) into each field's own reason. `fields` = the fields in that log entry.
+  # Returns NULL (keep the reason as it is) unless the reason starts with "name: " and at least one of the
+  # names is a field in the entry. A line starts at the beginning, after a line break (or <br>), or - if
+  # REDCap has joined the lines with spaces - at " field_name: " for a field in the entry.
+  split_reason <- function(reason, fields) {
+    if (length(reason) != 1 || blank(reason)) return(NULL)
+    txt <- gsub("<br\\s*/?>", "\n", reason, ignore.case = TRUE, perl = TRUE)
+    if (!grepl("^\\s*[a-z][a-z0-9_]*: ", txt, perl = TRUE)) return(NULL)
+    f <- fields[grepl("^[a-z][a-z0-9_]*$", fields)]
+    f <- f[order(-nchar(f))]
+    starts <- paste0("(?:^\\s*|[\\r\\n]+\\s*)([a-z][a-z0-9_]*): ",
+                     if (length(f)) paste0("| (", paste(f, collapse = "|"), "): ") else "")
+    m <- gregexpr(starts, txt, perl = TRUE)[[1]]
+    cs <- attr(m, "capture.start"); cl <- attr(m, "capture.length")
+    nm <- vapply(seq_along(m), function(i) {
+      j <- which(cs[i, ] > 0)[1]; substr(txt, cs[i, j], cs[i, j] + cl[i, j] - 1)
+    }, "")
+    if (!any(nm %in% fields)) return(NULL)
+    ends <- c(as.integer(m)[-1] - 1L, nchar(txt))
+    val <- trimws(substring(txt, as.integer(m) + attr(m, "match.length"), ends))
+    val[val == ""] <- NA_character_
+    out <- stats::setNames(val, nm)
+    out[!duplicated(names(out))]
+  }
 
   # ---- 1. Check inputs ----
   env <- tolower(trimws(as.character(environment)))
@@ -142,7 +173,7 @@ get_audit_trail <- function(token, study_name, environment, end_time = "",
 
   out_cols <- c("project", "timestamp", "username", "action", "log_action", "record", "event", "instance",
                 "field", "option", "old_value", "new_value", "old_timestamp", "new_timestamp",
-                "change_type", "reason", "details", "generated_by")
+                "change_type", "reason", "log_reason", "details", "generated_by")
   if (nrow(log) == 0) {
     message("The REDCap log is empty.")
     empty <- as.data.frame(stats::setNames(replicate(length(out_cols), character(0), simplify = FALSE), out_cols))
@@ -234,22 +265,30 @@ get_audit_trail <- function(token, study_name, environment, end_time = "",
                             instance = changes$instance, field = changes$field, option = changes$option,
                             old_value = changes$old_value, new_value = changes$value,
                             old_timestamp = changes$old_timestamp, new_timestamp = l$timestamp_dt,
-                            change_type = changes$change_type, reason = l$reason, details = l$details,
-                            stringsAsFactors = FALSE)
+                            change_type = changes$change_type, reason = l$reason, log_reason = l$reason,
+                            details = l$details, stringsAsFactors = FALSE)
+    # V3.0.0: reasons written one line per field ("field_name: reason") are split, so each field's row
+    # has its own reason
+    for (r in unique(changes$row)) {
+      k <- which(changes$row == r)
+      own <- split_reason(log$reason[r], unique(changes$field[k]))
+      if (!is.null(own)) data_rows$reason[k] <- unname(own[changes$field[k]])
+    }
   } else {
     data_rows <- NULL
   }
 
   # ---- 6. Other log entries are kept as they are ----
   other <- log[!is_data, , drop = FALSE]
-  other_rows <- data.frame(seq = other$seq, item_order = 0L, project = project_title,
+  no <- nrow(other)   # V3.0.0: rep() so a log with only data entries works (V2.1.0 stopped with an error)
+  other_rows <- data.frame(seq = other$seq, item_order = rep(0L, no), project = rep(project_title, no),
                            timestamp = other$timestamp_dt, username = other$username, action = other$action,
-                           log_action = other$action, record = other$record, event = NA_character_,
-                           instance = NA_integer_, field = NA_character_, option = NA_character_,
-                           old_value = NA_character_, new_value = NA_character_,
-                           old_timestamp = as.POSIXct(NA, tz = "UTC"), new_timestamp = as.POSIXct(NA, tz = "UTC"),
-                           change_type = NA_character_, reason = other$reason, details = other$details,
-                           stringsAsFactors = FALSE)
+                           log_action = other$action, record = other$record, event = rep(NA_character_, no),
+                           instance = rep(NA_integer_, no), field = rep(NA_character_, no), option = rep(NA_character_, no),
+                           old_value = rep(NA_character_, no), new_value = rep(NA_character_, no),
+                           old_timestamp = rep(as.POSIXct(NA, tz = "UTC"), no), new_timestamp = rep(as.POSIXct(NA, tz = "UTC"), no),
+                           change_type = rep(NA_character_, no), reason = other$reason, log_reason = other$reason,
+                           details = other$details, stringsAsFactors = FALSE)
   # entries REDCap logs as data entries but with nothing to read (e.g. only "[instance = 2]") are kept too
   unread <- setdiff(which(is_data), if (is.null(data_rows)) integer(0) else unique(changes$row))
   if (length(unread) > 0) {
@@ -259,7 +298,7 @@ get_audit_trail <- function(token, study_name, environment, end_time = "",
       action = u$action, log_action = u$action, record = u$record, event = NA_character_, instance = NA_integer_,
       field = NA_character_, option = NA_character_, old_value = NA_character_, new_value = NA_character_,
       old_timestamp = as.POSIXct(NA, tz = "UTC"), new_timestamp = as.POSIXct(NA, tz = "UTC"),
-      change_type = NA_character_, reason = u$reason, details = u$details, stringsAsFactors = FALSE))
+      change_type = NA_character_, reason = u$reason, log_reason = u$reason, details = u$details, stringsAsFactors = FALSE))
   }
 
   audit_data <- rbind(other_rows, data_rows)
@@ -267,6 +306,7 @@ get_audit_trail <- function(token, study_name, environment, end_time = "",
   audit_data$event[!is.na(audit_data$event) & audit_data$event == ""] <- NA
   audit_data$option[!is.na(audit_data$option) & audit_data$option == ""] <- NA
   audit_data$reason[!is.na(audit_data$reason) & trimws(audit_data$reason) == ""] <- NA
+  audit_data$log_reason[!is.na(audit_data$log_reason) & trimws(audit_data$log_reason) == ""] <- NA
   audit_data$generated_by <- rep(generated_by, nrow(audit_data))
   audit_data <- audit_data[, out_cols]
   rownames(audit_data) <- NULL
