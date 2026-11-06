@@ -54,11 +54,17 @@ token <- keyring::key_get("STUDY_PURPOSE_TOKEN")
 | `build_rfc_script()` | Makes a study's copy of the reason-for-change JavaScript, with the study's fields that never need a reason. |
 | `completeness_thresholds()` | Sets the green, amber and red thresholds used in the data completeness report. |
 | `completeness_tracker_data_prep()` | Exports a study's form statuses from REDCap and counts complete, partially complete and incomplete forms by event and site. |
+| `csm_missing_codes()` | Reads the missing data codes set in a REDCap project into a list of codes, with any the study adds or uses instead. |
+| `csm_review()` | Runs the central statistical monitoring checks on a study's critical data items by event and site, and saves the CSM workbook. |
 | `get_audit_trail()` | Downloads a REDCap project's log and splits it into one row per field change, with the old and new values and that field's reason. |
 | `get_redcap_exports()` | Exports a study's REDCap reports and saves each one as a CSV file, with an export log. |
 | `missing_overdue_and_oow_timepoints()` | Shows, for each participant and timepoint, whether it was attended in or out of its window, is missing, did not take place or is no longer expected. |
 | `rfc_exempt_fields()` | Lists the fields in a data dictionary that never need a reason for change. |
 | `write_excel_completeness()` | Saves the data completeness report as an Excel workbook, with percentages coloured green, amber or red. |
+
+### atr_unhelpful_reasons()
+
+Returns the reasons for change that the audit trail review treats as unhelpful because they don't say why a value was changed, such as "corrected", "updated" or "n/a". Blank and one-character reasons are always unhelpful. Reasons are compared ignoring capitals, punctuation and spaces, so "Corrected." matches but "Corrected – weight was in lbs" doesn't. A study can add its own, for example `atr_unhelpful_reasons(add = c("as per query"))`. Used by `audit_trail_review()` and `TEMPLATE_ATR`.
 
 ### audit_trail_review()
 
@@ -68,6 +74,10 @@ Takes the audit trail from `get_audit_trail()` (one or more projects) and the da
 
 Works through a study's non-compliance (NC) presets, one row per NC rule, and finds the records where an NC has been triggered but not yet logged. It writes these to a date-stamped NC log file, then flags each record in REDCap so it isn't picked up again. Set `upload = FALSE` for a dry run that creates the log without saving the file or flagging any records. Used by `TEMPLATE_AutomatedNonCompliances`.
 
+### build_rfc_script()
+
+Makes a study's copy of PenCTU_ReasonForChange.js, the REDCap JavaScript that asks for a reason for each changed field. It takes the validated script from the package, puts in the study's fields that never need a reason (from `rfc_exempt_fields()`), and adds a header naming the study, the script version and when it was made. Nothing else in the script is changed, and the function checks this. Run it again after any change to the data dictionary, then copy the file into the project's JavaScript Injector. Used by `TEMPLATE_ReasonForChange`.
+
 ### completeness_thresholds()
 
 Returns the thresholds for the data completeness report's green, amber and red ratings. The defaults are 85% or more complete for green and 75% to under 85% for amber, and 15% or less partially complete or incomplete for green and over 15% to 25% for amber. A study can set its own, for example `completeness_thresholds(complete_green = 0.9)`. Used by `write_excel_completeness()` and `TEMPLATE_DataCompleteness`.
@@ -75,6 +85,14 @@ Returns the thresholds for the data completeness report's green, amber and red r
 ### completeness_tracker_data_prep()
 
 Exports a study's data and form statuses from REDCap (live or test) and counts, for each form at each event and site, how many are complete, partially complete or incomplete. Every instance of a repeating form or event is counted. Sites come from the DAGs; records with no DAG are shown as "Unknown", and a project with no DAGs as "All participants". You can choose events, leave out forms, count some forms only where they have been started (such as an adverse event log), and use the timepoints file to leave out timepoints that did not take place. Used with `write_excel_completeness()` by `TEMPLATE_DataCompleteness`.
+
+### csm_missing_codes()
+
+Turns the missing data codes from a REDCap project's settings (Project Setup > Additional customizations), for example "NI, No information | UNK, Unknown", into a list of codes. A study can add codes, for example `csm_missing_codes(info$missing_data_codes, add = "ND")`, or use its own codes instead with `replace`. Used by `TEMPLATE_CSMMonitoring`.
+
+### csm_review()
+
+Runs the central statistical monitoring checks on a study's critical data items (required items only), separately for each event listed for the item, and compares sites (DAGs). The checks are: overall and site distribution summaries, z-scores (each site against the rest of the study), Brown-Forsythe and Anderson-Darling tests, Mahalanobis distance and k-means clustering for groups of related items, missing data items (blanks and missing data codes on forms that have been started), similar records, and digit preference. p-values are corrected for multiple testing. Sites with too few records are shown as "too few to assess", and records with no DAG are only in the overall summary. It can review more than one REDCap project in one run (for example Data Capture and Safety Reporting). Saves one Excel workbook, outside any GitHub repository, with a cover sheet showing the settings and versions used and a table for the review's findings, a Flags for Review sheet, a Not Assessed sheet and one sheet per check. Thresholds can be set by the study. Replaces the previous separate CSM functions. Used by `TEMPLATE_CSMMonitoring`.
 
 ### get_audit_trail()
 
