@@ -2,8 +2,7 @@
 % Please edit documentation in R/missing_overdue_and_oow_timepoints.R
 \name{missing_overdue_and_oow_timepoints}
 \alias{missing_overdue_and_oow_timepoints}
-\title{Exports '.xlsx' excel workbook with sheets corresponding to study-wide required event timepoints that are:
-missing - and the days overdue, out-of-window, in-window, or excluded.}
+\title{Missing, overdue and out-of-window timepoints}
 \usage{
 missing_overdue_and_oow_timepoints(
   data,
@@ -13,41 +12,56 @@ missing_overdue_and_oow_timepoints(
   simplify_ID = FALSE,
   simplify_event_date = FALSE,
   id_number_delimiter = "-",
-  id_number_position = "last"
+  id_number_position = "last",
+  stop_rules = NULL,
+  as_of = Sys.Date(),
+  study_name = NULL,
+  output_dir = NULL,
+  script = NULL,
+  export_time = NULL
 )
 }
 \arguments{
-\item{data}{A REDCap export dataset.}
+\item{data}{A REDCap export (flat, raw codes, with the DAG column if the project
+has DAGs), as read by the template.}
 
-\item{metadata}{A critical data item metadata dataframe.}
+\item{metadata}{The timepoints file (data frame), one row per timepoint.
+Repeating events in it are not assessed.}
 
-\item{id_number_delimiter}{Character(s) the participant ID is split on to isolate the participant
-number, e.g. "-" for an ID like "01-001". Defaults to "-". Used only to sort participants sensibly
-within their own site on the plot - never shown on the plot itself.}
+\item{by_site, simplify_ID, simplify_event_date, id_number_delimiter, id_number_position}{As in V1 (by_site and the id_number arguments are used by the plot).}
 
-\item{id_number_position}{Which piece of the split ID holds the participant number: "last" (default),
-"first", or a numeric index (as a string, e.g. "2") for a specific piece.}
+\item{include_split_CSVs}{Accepted so V1 calls still work; CSV files are no longer saved.}
+
+\item{stop_rules}{Optional stop rules: a data frame or the path to a CSV with columns
+rule, event, date_field and logic (REDCap-style: \link{field}='x', <>, \link{field(code)},
+AND, OR, brackets; blank logic = any record with a date).}
+
+\item{as_of}{Date days overdue are counted from (Date or "YYYY-MM-DD"); default today.}
+
+\item{study_name}{Study name for the file names. If not given, taken from the
+calling script (as in V1).}
+
+\item{output_dir}{Folder to save in; default Documents/REDCap_timepoints/<study_name>.
+Must not be inside a Git repository.}
+
+\item{script}{Name and version of the script that ran this, shown on the cover sheet.}
+
+\item{export_time}{Optional date-time the data were exported, shown on the cover sheet.}
 }
 \value{
-An excel workbook containing timepoints, the days out of window, days overdue, and orders by participant ID and event name.
+Invisibly, a list: \code{results} (one row per participant and timepoint),
+\code{summary} (counts by site and timepoint) and \code{file}.
 }
 \description{
-This function lists timepoints for required events and the number of days overdue or out of window,
-using expected field names, timepoint names and date window definitions from a metadata csv.
-The function separates the list by category into different sheets on an excel workbook.
-Function also exports .CSV files for out-of-window timepoints and missing timepoints.
-The follow-up window completion plot is saved and inserted as its own "Plot" sheet in the
-exported workbook. Each participant is placed in a compact block for their own site (sized to that
-site's own participant count, so sites of very different sizes don't waste space), and the y-axis
-is labelled with just each site's short prefix (e.g. "01", "02"), matching the site/DAG already
-used throughout the rest of the workbook.
+For each participant and each scheduled timepoint in the timepoints file
+(\code{metadata}), works out the visit window from the baseline date and shows
+whether the timepoint was attended in window, attended early or late, is missing
+(overdue or not yet overdue), did not take place, is no longer expected (because a
+stop rule such as a withdrawal or death applies), or cannot be assessed. Saves an
+Excel workbook with a cover sheet, a summary by site and timepoint, one sheet per
+category and the follow-up window plot.
 }
 \details{
-Baseline "occurred" status is inferred directly from whether the baseline date field is populated,
-rather than from a separate baseline-occurred yes/no field - the metadata dataframe no longer needs
-a \code{baseline_occurred_field_name} column for this function to run.
-}
-\examples{
-missing_overdue_and_oow_timepoints(data, metadata)
-
+V1 calls (\code{data} and \code{metadata} only) still work: \code{study_name} is
+then taken from the calling script, as in V1.
 }
