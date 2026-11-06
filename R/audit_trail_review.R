@@ -1,6 +1,6 @@
 #Title: Audit trail review
-#Author: Paigan Aspinall; V1.0.0 AI-drafted from the V1 ATR functions, see 1_code/atr_requirements.md
-#Version & Date: V1.0.0 DDMMMYYYY (DRAFT)
+#Author: Paigan Aspinall
+#Version & Date: V1.1.0 06NOV2026
 #R version: 4.4.3
 
 #' Unhelpful reasons for change
@@ -90,7 +90,7 @@ audit_trail_review <- function(atr_data, metadata, critical_data_items = NULL, s
                                days_threshold = 1, unhelpful_reasons = atr_unhelpful_reasons(),
                                script = NULL, export_time = NULL) {
 
-  version <- "1.0.0"
+  version <- "1.1.0"
   blank <- function(x) is.na(x) | trimws(as.character(x)) == ""
   one_text <- function(x) length(x) == 1 && is.character(x) && !is.na(x)
 
@@ -259,8 +259,7 @@ audit_trail_review <- function(atr_data, metadata, critical_data_items = NULL, s
   ch$days <- as.numeric(difftime(ch$new_timestamp, ch$old_timestamp, units = "days"))
   tc <- ch[!is.na(ch$days) & ch$days > days_threshold, , drop = FALSE]
   time_to_change <- drop_project(data.frame(project = tc$project, site = tc$site, record = tc$record, event = tc$event,
-                                            instance = tc$instance, field = field_label(tc), old_value = tc$old_value,
-                                            new_value = tc$new_value, reason = tc$reason,
+                                            instance = tc$instance, field = field_label(tc), reason = tc$reason,
                                             days_between_changes = round(tc$days, 1), stringsAsFactors = FALSE))
   time_to_change <- time_to_change[order(-time_to_change$days_between_changes, time_to_change$record, method = "radix"), , drop = FALSE]
   rownames(time_to_change) <- NULL
@@ -276,7 +275,7 @@ audit_trail_review <- function(atr_data, metadata, critical_data_items = NULL, s
   out_of_hours <- drop_project(data.frame(project = o$project, timestamp = fmt_time(o$timestamp),
                                           day = days_en[day_num[ooh]], username = o$username, site = o$site,
                                           record = o$record, event = o$event, instance = o$instance,
-                                          field = field_label(o), old_value = o$old_value, new_value = o$new_value,
+                                          field = field_label(o),
                                           reason = o$reason, stringsAsFactors = FALSE))
   rownames(out_of_hours) <- NULL
 
@@ -284,7 +283,7 @@ audit_trail_review <- function(atr_data, metadata, critical_data_items = NULL, s
   r <- ch[ch$unhelpful, , drop = FALSE]
   reasons <- drop_project(data.frame(project = r$project, timestamp = fmt_time(r$timestamp), username = r$username,
                                      site = r$site, record = r$record, event = r$event, instance = r$instance,
-                                     field = field_label(r), old_value = r$old_value, new_value = r$new_value,
+                                     field = field_label(r),
                                      reason = ifelse(is.na(r$reason), "(blank)", r$reason), stringsAsFactors = FALSE))
   rownames(reasons) <- NULL
 
@@ -294,11 +293,11 @@ audit_trail_review <- function(atr_data, metadata, critical_data_items = NULL, s
   deletions <- drop_project(rbind(
     data.frame(project = del$project, type = rep("Record deleted", nrow(del)), timestamp = fmt_time(del$timestamp),
                username = del$username, site = del$site, record = del$record, event = rep(NA_character_, nrow(del)),
-               field = rep(NA_character_, nrow(del)), old_value = rep(NA_character_, nrow(del)), reason = del$reason,
+               field = rep(NA_character_, nrow(del)), reason = del$reason,
                stringsAsFactors = FALSE),
     data.frame(project = cleared$project, type = rep("Value cleared", nrow(cleared)), timestamp = fmt_time(cleared$timestamp),
                username = cleared$username, site = cleared$site, record = cleared$record, event = cleared$event,
-               field = field_label(cleared), old_value = cleared$old_value, reason = cleared$reason,
+               field = field_label(cleared), reason = cleared$reason,
                stringsAsFactors = FALSE)))
   deletions <- deletions[order(deletions$timestamp, decreasing = TRUE), , drop = FALSE]
   rownames(deletions) <- NULL
