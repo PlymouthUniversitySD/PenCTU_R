@@ -2,119 +2,61 @@
 % Please edit documentation in R/completeness_tracker_data_prep.R
 \name{completeness_tracker_data_prep}
 \alias{completeness_tracker_data_prep}
-\title{Prepare Data for the Completeness Tracker}
+\title{Prepare data for the data completeness report}
 \usage{
 completeness_tracker_data_prep(
-  data,
-  form_list,
-  sites,
-  statuses,
-  exclude_repeat_instances = FALSE
+  token,
+  environment,
+  events = NULL,
+  exclude_forms = NULL,
+  as_needed_forms = NULL,
+  timepoints = NULL
 )
 }
 \arguments{
-\item{data}{A data frame containing REDCap form-completion fields. The dataset
-must include a \code{redcap_data_access_group} column and one or more fields
-whose names end in \code{"_complete"}. When
-\code{exclude_repeat_instances = TRUE}, the dataset must also contain a
-\code{redcap_repeat_instance} column.}
+\item{token}{REDCap API token. Read it with keyring::key_get(); never type it.}
 
-\item{form_list}{A character vector defining the forms to include in the
-summary and the order in which they should appear.}
+\item{environment}{"live" or "test".}
 
-\item{sites}{A character vector defining the sites to include and their
-display order. Include \code{"Unknown"} where records without a Data Access
-Group should be represented explicitly.}
+\item{events}{Optional unique event names to include (default: all events).
+Use this to leave out, for example, an admin arm.}
 
-\item{statuses}{A character vector containing exactly three display labels.
-Values must be supplied in the following order: incomplete, unverified or
-partially complete, and complete.}
+\item{exclude_forms}{Optional form names to leave out of the report.}
 
-\item{exclude_repeat_instances}{A logical value indicating whether repeating
-rows should be excluded. When \code{TRUE}, rows with a
-\code{redcap_repeat_instance} value of \code{1} or greater are removed.
-Defaults to \code{FALSE}.}
+\item{as_needed_forms}{Optional form names only counted where started (for
+example adverse events, withdrawal, death).}
+
+\item{timepoints}{Optional timepoints file (a data frame, or the path to the CSV
+used by the timepoint report). Uses the columns timepoint_name and
+timepoint_occurred_field_name, and baseline_name and
+baseline_occurred_field_name if present. A value of 0 ("No") in the occurred
+field means the timepoint did not take place.}
 }
 \value{
-A data frame containing one row per form and one column for each
-site-status combination. Counts are returned as whole numbers, with zero
-used where no records exist for a given combination.
+A list of class "completeness_data": \code{counts} (one row per event,
+form, site and status, with n), \code{participants} (participants counted and
+timepoints left out, per event and site), \code{events}, \code{forms},
+\code{sites} and \code{settings}.
 }
 \description{
-Converts REDCap form-completion data into a site-level summary table suitable
-for use in the completeness-tracker Excel report.
+Downloads a study's records, data access groups (DAGs), events, forms and
+repeating set-up from REDCap through the API, and counts the status of every
+form at every event, by site. The result is passed to
+\code{write_excel_completeness()}.
 }
 \details{
-The function identifies all fields ending in \code{"_complete"} and converts
-them from wide format into a long-form dataset containing one row per record,
-form, and completion status.
-
-REDCap completion-status values are mapped to the labels supplied through
-\code{statuses}. The \code{statuses} argument must contain exactly three
-values in the following order:
-
-\enumerate{
-\item The label to use for incomplete forms
-\item The label to use for unverified or partially complete forms
-\item The label to use for complete forms
-}
-
-Raw REDCap values of \code{0} or \code{"Incomplete"} are mapped to the first
-status label. Values of \code{1}, \code{"Unverified"}, or
-\code{"Partially complete"} are mapped to the second status label. Values of
-\code{2} or \code{"Complete"} are mapped to the third status label.
-
-Missing completion statuses are mapped to the first value supplied in
-\code{statuses}. Records without an assigned REDCap Data Access Group are
-classified under the site label \code{"Unknown"}.
-
-Repeat-instance rows can optionally be excluded before the summary is
-calculated. When \code{exclude_repeat_instances = TRUE}, rows where
-\code{redcap_repeat_instance} is equal to or greater than \code{1} are
-removed. Non-repeating rows, represented by a missing, blank, or zero repeat
-instance, are retained.
-
-If repeat instances are to be excluded, the input dataset must contain a
-\code{redcap_repeat_instance} column.
-
-A complete grid of all expected combinations of form, site, and completion
-status is generated. This ensures that combinations with no observed records
-are retained in the output and assigned a count of zero.
-
-The resulting summary table contains:
-
+Rules (see the requirements for the full list):
 \itemize{
-\item One row per form
-\item One column for each site and completion-status combination
-\item Counts of records within each site-status combination
+\item For each event, only participants with data at that event are counted.
+\item Status: 0 = incomplete, 1 = partially complete (REDCap "Unverified"),
+2 = complete; a form with no status counts as incomplete.
+\item Every instance of a repeating form or repeating event is counted, and
+each form uses its own number of instances.
+\item Forms listed in \code{as_needed_forms} (for example an adverse event
+log) are only counted where they have been started.
+\item If \code{timepoints} is given, a participant's forms at an event (or an
+instance of a repeating event) marked as not having taken place are left out.
+\item Records with no DAG are counted under "Unknown". A project with no DAGs
+is reported as one group, "All participants".
 }
-
-Output columns are ordered using a site-major, status-minor structure. This
-means that all status columns for the first site are displayed together,
-followed by all status columns for the second site, and so on.
-
-Form rows are ordered according to \code{form_list}, rather than
-alphabetically.
-}
-\examples{
-completeness_summary <- completeness_tracker_data_prep(
-  data = week_12_data,
-  form_list = c(
-    "baseline_complete",
-    "follow_up_complete",
-    "outcome_complete"
-  ),
-  sites = c(
-    "Site 1",
-    "Site 2",
-    "Unknown"
-  ),
-  statuses = c(
-    "Incomplete",
-    "Partially complete",
-    "Complete"
-  ),
-  exclude_repeat_instances = TRUE
-)
-
 }

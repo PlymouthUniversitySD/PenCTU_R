@@ -1,67 +1,133 @@
-#Title: Central Statistical Monitoring - Missing, Overdue, and Out-Of-Window Timepoints Data Function
-#Author: Eduard Mazuru
-#Version & Date: V1.6.0 24AUG2026
+#Title: Missing, Overdue and Out-Of-Window Timepoints
+#Author: Eduard Mazuru 
+#Version & Date: V2.0.0 04NOV2026
 #R version: 4.4.3
-#' Exports '.xlsx' excel workbook with sheets corresponding to study-wide required event timepoints that are:
-#' missing - and the days overdue, out-of-window, in-window, or excluded.
+#' Missing, overdue and out-of-window timepoints
 #'
-#' This function lists timepoints for required events and the number of days overdue or out of window,
-#' using expected field names, timepoint names and date window definitions from a metadata csv.
-#' The function separates the list by category into different sheets on an excel workbook.
-#' Function also exports .CSV files for out-of-window timepoints and missing timepoints.
-#' The follow-up window completion plot is saved and inserted as its own "Plot" sheet in the
-#' exported workbook. Each participant is placed in a compact block for their own site (sized to that
-#' site's own participant count, so sites of very different sizes don't waste space), and the y-axis
-#' is labelled with just each site's short prefix (e.g. "01", "02"), matching the site/DAG already
-#' used throughout the rest of the workbook.
+#' For each participant and each scheduled timepoint in the timepoints file
+#' (\code{metadata}), works out the visit window from the baseline date and shows
+#' whether the timepoint was attended in window, attended early or late, is missing
+#' (overdue or not yet overdue), did not take place, is no longer expected (because a
+#' stop rule such as a withdrawal or death applies), or cannot be assessed. Saves an
+#' Excel workbook with a cover sheet, a summary by site and timepoint, one sheet per
+#' category and the follow-up window plot.
 #'
-#' Baseline "occurred" status is inferred directly from whether the baseline date field is populated,
-#' rather than from a separate baseline-occurred yes/no field - the metadata dataframe no longer needs
-#' a \code{baseline_occurred_field_name} column for this function to run.
+#' V1 calls (\code{data} and \code{metadata} only) still work: \code{study_name} is
+#' then taken from the calling script, as in V1.
 #'
-#' @param data A REDCap export dataset.
-#' @param metadata A critical data item metadata dataframe.
-#' @param id_number_delimiter Character(s) the participant ID is split on to isolate the participant
-#'   number, e.g. "-" for an ID like "01-001". Defaults to "-". Used only to sort participants sensibly
-#'   within their own site on the plot - never shown on the plot itself.
-#' @param id_number_position Which piece of the split ID holds the participant number: "last" (default),
-#'   "first", or a numeric index (as a string, e.g. "2") for a specific piece.
-#'
-#' @return An excel workbook containing timepoints, the days out of window, days overdue, and orders by participant ID and event name.
-#'
-#' @importFrom dplyr "%>%"
-#' @importFrom dplyr "filter"
-#' @importFrom dplyr "select"
-#' @importFrom dplyr "setdiff"
-#' @importFrom dplyr "arrange"
-#' @importFrom dplyr "bind_rows"
-#' @importFrom dplyr "pull"
-#' @importFrom dplyr "relocate"
-#' @importFrom tidyselect "all_of"
-#' @importFrom tidyselect "last_col"
-#' @importFrom tidyselect "everything"
-#' @importFrom tidyr "pivot_wider"
-#' @importFrom tidyr "pivot_longer"
-#' @importFrom ggplot2 "ggsave"
-#' @importFrom openxlsx "createStyle"
-#' @importFrom openxlsx "createWorkbook"
-#' @importFrom openxlsx "addWorksheet"
-#' @importFrom openxlsx "writeData"
-#' @importFrom openxlsx "freezePane"
-#' @importFrom openxlsx "setColWidths"
-#' @importFrom openxlsx "conditionalFormatting"
-#' @importFrom openxlsx "insertImage"
-#' @importFrom openxlsx "saveWorkbook"
-#' @importFrom openxlsx "write.xlsx"
-#'
-#' @examples
-#' missing_overdue_and_oow_timepoints(data, metadata)
-#'
+#' @param data A REDCap export (flat, raw codes, with the DAG column if the project
+#'   has DAGs), as read by the template.
+#' @param metadata The timepoints file (data frame), one row per timepoint.
+#'   Repeating events in it are not assessed.
+#' @param by_site,simplify_ID,simplify_event_date,id_number_delimiter,id_number_position
+#'   As in V1 (by_site and the id_number arguments are used by the plot).
+#' @param include_split_CSVs Accepted so V1 calls still work; CSV files are no longer saved.
+#' @param stop_rules Optional stop rules: a data frame or the path to a CSV with columns
+#'   rule, event, date_field and logic (REDCap-style: [field]='x', <>, [field(code)],
+#'   AND, OR, brackets; blank logic = any record with a date).
+#' @param as_of Date days overdue are counted from (Date or "YYYY-MM-DD"); default today.
+#' @param study_name Study name for the file names. If not given, taken from the
+#'   calling script (as in V1).
+#' @param output_dir Folder to save in; default Documents/REDCap_timepoints/<study_name>.
+#'   Must not be inside a Git repository.
+#' @param script Name and version of the script that ran this, shown on the cover sheet.
+#' @param export_time Optional date-time the data were exported, shown on the cover sheet.
+#' @return Invisibly, a list: \code{results} (one row per participant and timepoint),
+#'   \code{summary} (counts by site and timepoint) and \code{file}.
 #' @export
-#FUNCTION-------------------------------------------------------------------------------------------------------------------------------------
-# Define the function "missing_overdue_and_oow_timepoints" using parameters "data" and "metadata"
-missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, include_split_CSVs = FALSE, simplify_ID = FALSE, simplify_event_date = FALSE, id_number_delimiter = "-", id_number_position = "last") {
-  
+missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, include_split_CSVs = FALSE,
+                                               simplify_ID = FALSE, simplify_event_date = FALSE,
+                                               id_number_delimiter = "-", id_number_position = "last",
+                                               stop_rules = NULL, as_of = Sys.Date(), study_name = NULL,
+                                               output_dir = NULL, script = NULL, export_time = NULL) {
+
+  version <- "2.0.0"
+  categories <- c("Missing and overdue", "Missing, not yet overdue", "Attended out of window",
+                  "Attended in window", "Did not take place", "Not expected", "Cannot be assessed")
+  sheet_names <- c("Missing And Overdue", "Missing NOT Overdue", "Attended Out Of Window",
+                   "Attended In Window", "Did Not Take Place", "Not Expected", "Cannot Be Assessed")
+
+  #CHECK INPUTS (V2.0.0)--------------------------------------------------------SECTION 0-----------------------------------------------------
+  #Study name: as in V1, taken from the calling script if it is not given.
+  if (is.null(study_name)) {
+    if (exists("study_name", envir = parent.frame(), inherits = TRUE)) {
+      study_name <- get("study_name", envir = parent.frame(), inherits = TRUE)
+    } else {
+      stop("study_name is needed: give study_name = \"STUDY\" (or set study_name in the script).")
+    }
+  }
+  if (length(study_name) != 1 || is.na(study_name) || !grepl("^[A-Za-z0-9_-]+$", trimws(study_name))) {
+    stop("study_name must contain only letters, numbers, _ and -.")
+  }
+  study_name <- trimws(study_name)
+  if (is.character(as_of) && !grepl("^\\d{4}-\\d{2}-\\d{2}$", trimws(as_of[1]))) as_of <- NA   # e.g. "03/11/2026" would be read as year 3
+  as_of <- tryCatch(as.Date(as_of), error = function(e) NA)
+  if (length(as_of) != 1 || is.na(as_of)) stop("as_of must be a date, e.g. \"2026-11-03\".")
+  if (!is.null(script) && (length(script) != 1 || is.na(script) || !is.character(script))) {
+    stop("script must be a single piece of text, e.g. \"TEMPLATE_TimepointMonitoring V2.0.0\", or left out.")
+  }
+  if (isTRUE(include_split_CSVs)) message("include_split_CSVs is no longer used: everything is in the workbook.")
+  if (is.null(output_dir)) output_dir <- file.path(path.expand("~"), "REDCap_timepoints", study_name)
+
+  metadata <- as.data.frame(metadata, stringsAsFactors = FALSE)
+  meta_need <- c("timepoint_name", "expected_days_after_baseline", "baseline_name", "minus_days", "plus_days",
+                 "record_id_field_name", "timepoint_occurred_field_name", "timepoint_date_field_name",
+                 "baseline_date_field_name")
+  if (!all(meta_need %in% names(metadata))) {
+    stop("metadata (the timepoints file) is missing column(s): ", paste(setdiff(meta_need, names(metadata)), collapse = ", "))
+  }
+  for (col in c("expected_days_after_baseline", "minus_days", "plus_days")) {
+    v <- suppressWarnings(as.numeric(as.character(metadata[[col]])))
+    if (any(is.na(v))) stop("metadata column ", col, " must be a number on every row.")
+    metadata[[col]] <- v
+  }
+  data <- as.data.frame(data, stringsAsFactors = FALSE, check.names = FALSE)
+  for (col in c("redcap_repeat_instrument", "redcap_repeat_instance")) if (!col %in% names(data)) data[[col]] <- NA
+  # blank text counts as missing, as REDCap exports read by the template have NA
+  data[] <- lapply(data, function(x) { if (is.character(x)) x[trimws(x) == ""] <- NA; x })
+  if (!"redcap_event_name" %in% names(data)) stop("data must have a redcap_event_name column (a longitudinal project).")
+  need_fields <- unique(c(metadata$record_id_field_name, metadata$timepoint_occurred_field_name,
+                          metadata$timepoint_date_field_name, metadata$baseline_date_field_name))
+  if (!all(need_fields %in% names(data))) {
+    stop("These fields in the timepoints file are not in the data: ", paste(setdiff(need_fields, names(data)), collapse = ", "))
+  }
+  #Sites: a project with no DAGs (no DAG column, or none filled in) is one group, "All participants"
+  no_dags <- !"redcap_data_access_group" %in% names(data) || all(is.na(data$redcap_data_access_group))
+  if (no_dags) data$redcap_data_access_group <- "All participants"
+  #Repeating events have no schedule, so they are not assessed
+  rep_rows <- !is.na(data$redcap_repeat_instance) & is.na(data$redcap_repeat_instrument)
+  repeating_events <- unique(as.character(data$redcap_event_name[rep_rows]))
+  not_assessed <- metadata$timepoint_name[metadata$timepoint_name %in% repeating_events]
+  metadata <- metadata[!metadata$timepoint_name %in% repeating_events, , drop = FALSE]
+  if (nrow(metadata) == 0) stop("No timepoints to assess: every timepoint in the timepoints file is a repeating event.")
+
+  #Stop rules
+  stop_source <- "Not used"
+  if (!is.null(stop_rules)) {
+    if (is.character(stop_rules) && length(stop_rules) == 1) {
+      if (!file.exists(stop_rules)) stop("stop_rules file not found: ", stop_rules)
+      stop_source <- basename(stop_rules)
+      stop_rules <- utils::read.csv(stop_rules, colClasses = "character", na.strings = character(0))
+    } else if (is.data.frame(stop_rules)) {
+      stop_source <- "data frame"
+    } else stop("stop_rules must be a data frame or the path to a CSV file.")
+    stop_rules <- as.data.frame(lapply(stop_rules, function(x) { x <- as.character(x); x[is.na(x)] <- ""; trimws(x) }),
+                                stringsAsFactors = FALSE)
+    if (!"logic" %in% names(stop_rules)) stop_rules$logic <- ""
+    if (!all(c("rule", "event", "date_field") %in% names(stop_rules))) {
+      stop("stop_rules must have the columns rule, event, date_field and logic.")
+    }
+    stop_rules <- stop_rules[!(stop_rules$rule == "" & stop_rules$event == "" & stop_rules$date_field == ""), , drop = FALSE]
+    bad <- which(stop_rules$rule == "" | stop_rules$event == "" | stop_rules$date_field == "")
+    if (length(bad) > 0) stop("stop_rules row(s) ", paste(bad, collapse = ", "), ": rule, event and date_field must all be filled in.")
+    bad <- setdiff(stop_rules$date_field, names(data))
+    if (length(bad) > 0) stop("stop_rules: these date fields are not in the data: ", paste(bad, collapse = ", "))
+    stop_rules$test <- lapply(stop_rules$logic, read_stop_logic, fields = names(data))
+    for (ev in setdiff(unique(stop_rules$event), unique(as.character(data$redcap_event_name)))) {
+      message("stop_rules: there is no data yet at event '", ev, "' - check the spelling if you expected some.")
+    }
+  }
+
   #REQUIRED EVENTS--------------------------------------------------------------SECTION 1-----------------------------------------------------
   
   #Defining required events (and matching baseline events) into new character vectors.
@@ -89,6 +155,11 @@ missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, 
   )
   #Then filter duplicate rows, which should leave a 1 to 1 map of record IDs to site/DAG.
   sites_by_unique_IDs <- dplyr::distinct(sites_by_unique_IDs)
+  #V2.0.0 (AI-drafted fix): keep one row per participant (their first DAG), so a participant whose DAG is
+  #blank on some rows is not listed twice (that put later participants against the wrong site in V1).
+  sites_by_unique_IDs <- sites_by_unique_IDs[order(is.na(sites_by_unique_IDs$redcap_data_access_group)), , drop = FALSE]
+  sites_by_unique_IDs <- sites_by_unique_IDs[!duplicated(sites_by_unique_IDs[[record_ids[1]]]), , drop = FALSE]
+  sites_by_unique_IDs <- sites_by_unique_IDs[match(unique(data[[record_ids[1]]]), sites_by_unique_IDs[[record_ids[1]]]), , drop = FALSE]
   
   
   #Additionally define list of sites/DAGs
@@ -147,371 +218,110 @@ missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, 
     #Select columns to only show required variables for function.
     dplyr::select(all_of(required_fields))
   
-  
-  #Define all_timepoints dataframe with an empty row to later be filtered out prior to function output/csv export.
-  all_timepoints <-data.frame(matrix(nrow = 1, ncol = length(required_fields)))
-  #Set the column names of "all_timepoints" to be the same as the required fields pulled from the REDCap database.
-  colnames(all_timepoints) <- required_fields
-  #Add a column for the days overdue, to be used later.
-  all_timepoints <- add_column(all_timepoints, days_overdue = c(NA))
-  #Add a column for the days out of window, to be used later.
-  all_timepoints <- add_column(all_timepoints, days_out_of_window = c(NA))
-  
-  #FUNCTION EVALUATION----------------------------------------------------------SECTION 5-----------------------------------------------------
-  
-  #For Loop: By ID Type---------------------------------------------------------FOR-------1
-  
-  #For generalisation, evaluate data one form of ID at a time (although it is unlikely for a study to have more than one field for record_id).
-  #This assumes only one ID at a time, though. This is not yet generalised to allow for studies in which participants have multiple IDs.
-  #That may be required for studies that include a sub-study ID.
-  for (xi in 1:ncol(data_unique_IDs)) {
-    
-    
-    #For Loop: By Unique ID-------------------------------------------------------FOR-------2----------ID-SPLIT----------
-    
-    #Evaluate data one participant ID at a time.
-    for (yi in 1:nrow(data_unique_IDs)) {
-      
-      #Temporary data frame to store data by ID.
-      dfID <- df %>%
-        #Filter rows to only include current participant ID.
-        dplyr::filter(
-          if_any(all_of(record_ids), ~ .x == as.character(data_unique_IDs[yi,xi]))
-          
-        )
-      
-      #For Loop: By Timepoint / Event-----------------------------------------------FOR-------3----------EVENT-SPLIT----------
-      
-      #Evaluate each ID-filtered data frame one event at a time.
-      for (j in 1:length(events)) {
-        
-        #Temporary data frame to store data by event (and ID).
-        dfIDevent <- dfID %>%
-          #Filter rows to only include current event.
-          dplyr::filter(
-            redcap_event_name %in% events[j]
-          )
-        
-        #Temporary data frame to store baseline data by event (and ID).
-        dfIDbaseline <- dfID %>%
-          #Filter rows to only include corresponding baseline.
-          dplyr::filter(
-            redcap_event_name %in% baselines[j]
-          )
-        #Define "days_after_baseline" for graph plotting.
-        days_after_baseline <- NA
-        
-        #If Statement: Baseline Event Recording---------------------------------------IF--------1
-        
-        #Use an 'if' statement to filter whether dfIDbaseline is empty, which should correspond to a baseline event not found recorded for this participant.
-        if (nrow(dfIDbaseline) == 0) {
-          
-          #Define and store 'NA' inside variable "baseline_date" for baseline events that are not found in the data.
-          baseline_date <- NA
-          #Store a comment about the baseline event for output.
-          additional_comment <- "No Baseline Event Recorded"
-          
-          
-          #Else-If: Baseline Event Recording------------------------------------------ELSE------1
-          
-          #Else if the baseline is not empty, pulls "baseline_date" from dfIDbaseline and stores comments dependent on pulled value.
-        } else {
-          
-          #Define a variable "baseline_date" and fill with the appointment date from the current ID and corresponding baseline event.
-          #Appointment date is pulled from dfIDbaseline cell in row 1 and the column which corresponds to the same field title as listed in the metadata.
-          baseline_date <- (dplyr::pull(dfIDbaseline[1,field_baseline_date[j]]))
-          
-          
-          #If Statement: Baseline Event Date Comment------------------------------------IF--------2
-          
-          #Use 'if' statement to filter based on whether a baseline date is recorded for this participant.
-          if (is.na(baseline_date)) {
-            
-            #Store a comment for output.
-            additional_comment <- "Baseline Date Not Recorded - Unable To Determine If Overdue"
-            
-            
-            #Else-If: Baseline Event Date Comment---------------------------------------ELSE------2
-          } else {
-            
-            #Store a comment for output.
-            additional_comment <- NA
-          }
-          #Close-If: Baseline Event Date Comment----------------------------------------CLOSE-IF--2
-          
+  #CLASSIFY EACH PARTICIPANT AND TIMEPOINT (V2.0.0)-----------------------------SECTION 5-----------------------------------------------------
+  rec_col <- record_ids[1]
+  as_d <- function(x) as.Date(as.character(x))
+  is_main <- is.na(data$redcap_repeat_instance) & is.na(data$redcap_repeat_instrument)
+  main <- data[is_main, , drop = FALSE]
+  #Site for each participant: their first DAG; "Unknown" if they have none
+  first_dag <- tapply(as.character(data$redcap_data_access_group), as.character(data[[rec_col]]),
+                      function(x) { x <- x[!is.na(x)]; if (length(x)) x[1] else NA_character_ })
+  site_of <- function(id) { s <- unname(first_dag[as.character(id)]); ifelse(is.na(s), "Unknown", s) }
+
+  #Stop date for each participant: the earliest date from any stop rule that matches
+  stop_date <- stats::setNames(as.Date(character(0)), character(0)); stop_rule <- character(0)
+  if (!is.null(stop_rules)) {
+    for (k in seq_len(nrow(stop_rules))) {
+      rows <- data[as.character(data$redcap_event_name) == stop_rules$event[k], , drop = FALSE]
+      if (nrow(rows) == 0) next
+      d <- as_d(rows[[stop_rules$date_field[k]]])
+      hit <- stop_rules$test[[k]](rows) & !is.na(d)
+      for (i in which(hit)) {
+        id <- as.character(rows[[rec_col]][i])
+        if (!id %in% names(stop_date) || d[i] < stop_date[[id]]) {
+          stop_date[id] <- d[i]; stop_rule[id] <- stop_rules$rule[k]
         }
-        #Close-If: Baseline Event Recording-------------------------------------------CLOSE-IF--1
-        
-        
-        #If Statement: Timepoint / Event Recorded Check-------------------------------IF--------3----------EVENT-HAS-NOT-OCCURRED----------
-        
-        #Use 'if' statement to filter based on whether a row is empty, which should correspond to missing events.
-        if (nrow(dfIDevent) == 0) {
-          
-          # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-          #
-          #            #For previously separate function: Days out of window.
-          #
-          #Define "days_out_of_window" as NA since it could not be calculated for an event that has not occurred.
-          days_out_of_window <- NA
-          #Store comment regarding the reason "days_out_of_window" is "NA".
-          out_of_window_comment <- "Unable To Define 'Days Out Of Window' - Event Not Recorded"
-          #
-          #
-          # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-          
-          #If Statement: Missing Timepoint / Event Days Overdue Recording---------------IF--------4
-          
-          #Use further 'if' statement to filter based on whether a date was provided for the baseline visit,
-          #as the amount of days overdue will not be calculable if no baseline date exists.
-          if (is.na(baseline_date)) {
-            
-            #Define a temporary variable "temp_days_overdue" for calculation, but fill with 'NA' if no baseline visit date.
-            temp_days_overdue <- NA
-            
-            
-            #Else-If: Missing Timepoint / Event Days Overdue Recording----------------ELSE------4
-            #If the baseline date was provided, fill variable "temp_days_overdue" with calculation of days overdue.
-          } else {
-            
-            #Use today's date (Sys.Date()), the provided "baseline_date", and the metadata information about the expected
-            #date window to calculate the number of days a visit is overdue, and fill "temp_days_overdue".
-            temp_days_overdue <- Sys.Date() - (baseline_date + metadata$expected_days_after_baseline[j] + metadata$plus_days[j])
-            
-            
-            #If Statement: Missing Timepoint / Event Days Overdue Check-----------------IF--------5
-            
-            #If statement checks whether the timepoint is already overdue and stores a corresponding comment dependent on result.
-            if (temp_days_overdue > 0) {
-              
-              #Store comment based on days overdue
-              additional_comment <- paste0("Event Overdue By ", temp_days_overdue ," Days As Of ",Sys.Date())
-              
-              #Else-If: Missing Timepoint / Event Days Overdue Check--------------------ELSE------5
-            } else {
-              
-              #Store comment based on days overdue
-              additional_comment <- paste0("Event Not Yet Overdue"," As Of ",Sys.Date())
-            }
-            #Close If: Missing Timepoint / Event Days Overdue Check---------------------CLOSE-IF--5
-          }
-          #Close-If: Missing Timepoint / Event Days Overdue Recording-------------------CLOSE-IF--4
-          
-          
-          #For missing events, fill temporary data frame "dfIDevent" with a defined row based on the current unique participant ID.
-          #and the current "redcap_event_name" being evaluated.
-          
-          #Start by defining the dimensions and column names.
-          dfIDevent <-data.frame(matrix(nrow = 1, ncol = length(required_fields)))
-          colnames(dfIDevent) <- required_fields
-          
-          
-          #For Loop: Fill Missing Data--------------------------------------------------FOR-------4
-          
-          #This 'for' loop fills columns based on their positions.
-          #The first few columns (up to the number of columns in data_unique_IDs) are participant IDs,
-          #though this is likely to be just one column.
-          #The next column is where the "redcap_event_name" is stored.
-          #The rest of the columns are filled with 'NA' as this is a missing event and thus has no date.
-          for (fi in 1:length(required_fields)) {
-            
-            #If Statement: ID Columns Check-----------------------------------------------IF--------6
-            
-            if (fi <= ncol(data_unique_IDs)) {
-              
-              #If Statement: Current ID Recording---------------------------------IF--------7
-              
-              if (xi == fi) {
-                #This fills the ID column(s) with the current ID.
-                dfIDevent[1,fi] <- data_unique_IDs[yi,xi]
-                
-                #Else-If: Current ID Recording--------------------------ELSE------7
-              } else {
-                #This fills other ID columns with NA.
-                #(This can be changed if there exist any studies with multiple IDs per participant,
-                #such as any with sub-study IDs).
-                NA
-              }
-              #Close If: Current ID Recording---------------------------CLOSE-IF--7
-              
-              #Else-If: ID Columns Check------------------------------------------ELSE------6
-              
-            } else {
-              
-              #If Statement: REDCap Event Name Recording----------------IF--------8
-              
-              #This fills the "redcap_event_name" column with the expected event name pulled from the metadata.
-              if (fi == (ncol(data_unique_IDs) + 1)) {
-                dfIDevent[1,fi] <- as.character(events[j])
-                
-                #Else-If: REDCap Event Name Recording-------------------ELSE------8
-              } else {
-                #All other columns are filled with NA as this is a missing event and does not include the information.
-                #Baseline information is later manually filled
-                NA
-              }
-              #Close If: REDCap Event Name Recording--------------------CLOSE-IF--8
-              
-              NA
-            }
-            #Close-If: ID Columns Check---------------------------------------CLOSE-IF--6
-            
-          }
-          #Close For Loop: Fill Missing Data------------------------------------------CLOSE-FOR-4
-          
-          
-          #Else-If: Timepoint / Event Recorded Check----------------------------------ELSE------3----------EVENT-HAS-OCCURRED----------
-          
-          #If the event is not missing, define a variable "temp_days_overdue" and fill with 'NA'.
-          #A separate function could be made here to measure days out of window.
-        } else {
-          
-          
-          #Define and fill "temp_days_overdue" with 'NA' for events
-          temp_days_overdue <- NA
-          
-          #If Statement: Timepoint / Event Date Check---------------------------------IF--------9
-          
-          #If statement checks whether a date was recorded for the timepoint. Then stores a comment depending on result.
-          if (is.na(dplyr::pull(dfIDevent[1,field_timepoint_date[j]]))) {
-            
-            #Store a comment for output.
-            additional_comment <- "Event Recorded - No Date Recorded"
-            
-            # # # # # # # # # # # ###########################################EXCLUSIVELY FOR OOW FUNCTION################################oow#oow#oow#
-            #
-            #            #For previously separate function: Days out of window.
-            #
-            #Define "days_out_of_window" as NA since it could not be calculated without both a baseline date and a visit date.
-            days_out_of_window <- NA
-            #Store comment regarding the reason "days_out_of_window" is "NA".
-            out_of_window_comment <- "Unable To Define 'Days Out Of Window' - No Event Date Recorded"
-            #
-            #
-            # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-            
-            #Else-If Statement: Timepoint / Event Date Check--------------------------ELSE------9
-          } else {
-            
-            #Store a comment for output.
-            additional_comment <- "Event Recorded"
-            
-            # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-            #
-            #            #For separate function: Days out of window.
-            #
-            #If Statement: C
-            #Checks whether the baseline date was recorded
-            if (is.na(baseline_date)) {
-              #Define "days_out_of_window" as NA since it could not be calculated without both a baseline date and a visit date.
-              days_out_of_window <- NA
-              #Store comment regarding the reason "days_out_of_window" is "NA".
-              out_of_window_comment <- "Unable To Define 'Days Out Of Window' - No Baseline Date Recorded"
-            } else {
-              #Define upper and lower limits of the expected days of out window based on the date of the event,
-              #date of baseline, and the expected date range pulled from metadata.
-              #Requires "expected_days_after_baseline", minus_days, and "plus_days" from metadata file.
-              temp_expected_event_date_upper_limit <- baseline_date + metadata$expected_days_after_baseline[j] + metadata$plus_days[j]
-              temp_expected_event_date_lower_limit <- baseline_date + metadata$expected_days_after_baseline[j] - metadata$minus_days[j]
-              #Define temp_event_date by pulling from dfIDevent.
-              temp_event_date <- (dplyr::pull(dfIDevent[1,field_timepoint_date[j]]))
-              
-              #Define "days_after_baseline" for graph plotting.
-              days_after_baseline <- temp_event_date - baseline_date
-              if (temp_event_date > temp_expected_event_date_upper_limit) {
-                days_out_of_window <- temp_event_date - temp_expected_event_date_upper_limit
-                out_of_window_comment <- paste0("Event Out Of Window (Late) By ", days_out_of_window ," Days")
-              } else {
-                if (temp_event_date < temp_expected_event_date_lower_limit) {
-                  days_out_of_window <- Mod(temp_event_date - temp_expected_event_date_lower_limit)
-                  out_of_window_comment <- paste0("Event Out Of Window (Early) By ", days_out_of_window ," Days")
-                } else {
-                  #Define "days_out_of_window" as NA since is within the expected date range.
-                  days_out_of_window <- NA
-                  #Store comment regarding the reason "days_out_of_window" is "NA".
-                  out_of_window_comment <- "Event Is Within Window"
-                }
-              }
-            }
-            #
-            #
-            # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-            
-          }
-          #Close-If Statement: Timepoint / Event Date Check---------------------------CLOSE-IF--9
-          
-        }
-        #Close-If: Timepoint / Event Recorded Check---------------------------------CLOSE-IF--3
-        
-        
-        #COLUMN ADDITIONS AND TRANSFORMATIONS-----------------------------------Section 5b----------------------------------------------------
-        
-        #Stores the current participant id field into a new variable to later simplify the output.
-        temp_participant_id <- (dplyr::pull(data_unique_IDs[yi,xi]))
-        
-        #Adds a column corresponding to the date of the baseline visit linked to this event.
-        dfIDevent <- add_column(dfIDevent, baseline_date = baseline_date)
-        #Adds a column corresponding to number of days after the baseline each event was attended.
-        dfIDevent <- add_column(dfIDevent, days_after_baseline = days_after_baseline)
-        #Transform the column's values to be numeric for future functions.
-        dfIDevent <- transform(dfIDevent, days_after_baseline = as.numeric(days_after_baseline))
-        #Adds a column to "dfIDevent" corresponding to the number of days that the event is overdue.
-        dfIDevent <- add_column(dfIDevent, days_overdue = temp_days_overdue)
-        #Transform the column's values to be numeric for future functions.
-        dfIDevent <- transform(dfIDevent, days_overdue = as.numeric(days_overdue))
-        #Adds a column with an additional comment based on the event date, baseline date, and whether the visit(s) occurred.
-        dfIDevent <- add_column(dfIDevent, additional_comment = additional_comment)
-        #Adds a column corresponding to the number of days that the event was out of window.
-        dfIDevent <- add_column(dfIDevent, days_out_of_window = days_out_of_window)
-        #Transform the column's values to be numeric for future functions.
-        dfIDevent <- transform(dfIDevent, days_out_of_window = as.numeric(days_out_of_window))
-        #Transform the site/DAG column to fill blank values with site based on unique ID.
-        dfIDevent <- transform(dfIDevent, redcap_data_access_group = sites_by_unique_IDs[[yi,1]])
-        #Adds a column with an additional comment based on the event date, baseline date, and whether the visit(s) was in window.
-        dfIDevent <- add_column(dfIDevent, out_of_window_comment = out_of_window_comment)
-        #Adds a column corresponding to the participant ID in order to more cleanly display data.
-        dfIDevent <- add_column(dfIDevent, participant_identifier_by_event = temp_participant_id)
-        #        #Adds a column corresponding to the event date in order to optionally simplify columns down later.
-        #        dfIDevent <- add_column(dfIDevent, temp_event_date = temp_event_date)
-        
-        #Bind together the rows from the pre-defined variable "all_timepoints" and the temporary data frame "dfIDevent"
-        #for each event and each participant.
-        all_timepoints <- dplyr::bind_rows(all_timepoints,dfIDevent)
-        
-        
-        
       }
-      #Close For Loop: By Timepoint / Event-----------------------------------------CLOSE-FOR-3
-      
     }
-    #Close For Loop: By Unique ID-------------------------------------------------CLOSE-FOR-2
-    
   }
-  #Close For Loop: By ID Type---------------------------------------------------CLOSE-FOR-1
-  
-  
-  #  #Relocate the event date for clarity.
-  #  all_timepoints <- dplyr::relocate(all_timepoints, temp_event_date)
-  #Relocate "redcap_event_name" for clarity.
-  all_timepoints <- dplyr::relocate(all_timepoints, redcap_event_name)
-  #Relocate the participant ID for clarity.
-  all_timepoints <- dplyr::relocate(all_timepoints, participant_identifier_by_event)
-  #Relocate the site/DAG for clarity.
-  all_timepoints <- dplyr::relocate(all_timepoints, redcap_data_access_group)
-  
-  #EXPORT PREPARATION-----------------------------------------------------------SECTION 6a-----------------------------------------------------
-  
-  
-  #Filter out the empty row from when "all_timepoints" data frame was originally defined.
-  #(There is probably a way to have done this without orginally defining the empty row.)
-  #Here it is filtered by removing any rows in which all possible record ID fields are NA.
-  all_timepoints <- dplyr::filter(all_timepoints,
-                                  if_all(
-                                    all_of(record_ids),
-                                    ~ !is.na(.x)
-                                  )
-  )
-  
+  fmt <- function(d) ifelse(is.na(d), "", format(d, "%d %b %Y"))
+
+  res <- list()
+  for (j in seq_len(nrow(metadata))) {
+    m <- metadata[j, ]
+    base_rows <- main[as.character(main$redcap_event_name) == m$baseline_name, , drop = FALSE]
+    ev_rows <- main[as.character(main$redcap_event_name) == m$timepoint_name, , drop = FALSE]
+    for (id in unique(as.character(base_rows[[rec_col]]))) {
+      b <- as_d(base_rows[[m$baseline_date_field_name]][as.character(base_rows[[rec_col]]) == id])
+      b <- b[!is.na(b)]; b <- if (length(b)) b[1] else as.Date(NA)
+      e <- ev_rows[as.character(ev_rows[[rec_col]]) == id, , drop = FALSE]
+      occ <- if (nrow(e)) trimws(as.character(e[[m$timepoint_occurred_field_name]][1])) else NA
+      tdate <- if (nrow(e)) as_d(e[[m$timepoint_date_field_name]][1]) else as.Date(NA)
+      expd <- b + m$expected_days_after_baseline; ws <- expd - m$minus_days; we <- expd + m$plus_days
+      status <- NA; days <- NA_integer_; detail <- ""
+      if (is.na(b)) {
+        status <- "Cannot be assessed"; detail <- "No baseline date"
+      } else if (!is.na(occ) && occ == "1") {
+        if (is.na(tdate)) {
+          status <- "Cannot be assessed"; detail <- "Marked as taken place but no date recorded"
+        } else if (tdate < ws) {
+          status <- "Attended out of window"; days <- as.integer(ws - tdate); detail <- paste0("Early by ", days, " day(s)")
+        } else if (tdate > we) {
+          status <- "Attended out of window"; days <- as.integer(tdate - we); detail <- paste0("Late by ", days, " day(s)")
+        } else {
+          status <- "Attended in window"
+        }
+      } else if (is.na(occ) && !is.na(tdate)) {
+        status <- "Cannot be assessed"; detail <- "Date recorded but not marked as taken place"
+      } else if (id %in% names(stop_date) && expd > stop_date[[id]]) {
+        status <- "Not expected"
+        detail <- paste0("Stopped by: ", stop_rule[[id]], " (", fmt(stop_date[[id]]), ")")
+      } else if (!is.na(occ) && occ == "0") {
+        status <- "Did not take place"
+      } else if (as_of > we) {
+        status <- "Missing and overdue"; days <- as.integer(as_of - we)
+        detail <- paste0("Overdue by ", days, " day(s) as of ", fmt(as_of))
+      } else {
+        status <- "Missing, not yet overdue"; days <- as.integer(we - as_of)
+        detail <- paste0("Overdue in ", days, " day(s) (as of ", fmt(as_of), ")")
+      }
+      res[[length(res) + 1]] <- data.frame(
+        site = site_of(id), record_id = id, timepoint = m$timepoint_name, status = status,
+        baseline_date = b, expected_date = expd, window_start = ws, window_end = we,
+        timepoint_date = tdate, days = days, detail = detail, stringsAsFactors = FALSE)
+    }
+  }
+  results <- if (length(res)) do.call(rbind, res) else
+    data.frame(site = character(), record_id = character(), timepoint = character(), status = character(),
+               baseline_date = as.Date(character()), expected_date = as.Date(character()), window_start = as.Date(character()),
+               window_end = as.Date(character()), timepoint_date = as.Date(character()), days = integer(),
+               detail = character(), stringsAsFactors = FALSE)
+  site_order <- sort(unique(results$site)); site_order <- c(setdiff(site_order, "Unknown"), intersect(site_order, "Unknown"))
+  results <- results[order(match(results$site, site_order), results$record_id,
+                           match(results$timepoint, metadata$timepoint_name)), , drop = FALSE]
+  rownames(results) <- NULL
+  names(results)[names(results) == "record_id"] <- rec_col
+
+  #Summary: count in each category for each site and timepoint, plus all sites
+  summ <- list()
+  for (tp in metadata$timepoint_name) for (s in c(site_order, "All sites")) {
+    x <- results[results$timepoint == tp & (s == "All sites" | results$site == s), , drop = FALSE]
+    summ[[length(summ) + 1]] <- data.frame(timepoint = tp, site = s,
+                                           t(stats::setNames(sapply(categories, function(k) sum(x$status == k)), categories)),
+                                           Total = nrow(x), check.names = FALSE, stringsAsFactors = FALSE)
+  }
+  summary_table <- do.call(rbind, summ); rownames(summary_table) <- NULL
+
+  #Output folder: created if needed, never inside a Git repository
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(output_dir)) stop("Could not create output_dir: ", output_dir)
+  out_abs <- normalizePath(output_dir, winslash = "/")
+  d_up <- out_abs
+  repeat {
+    if (file.exists(file.path(d_up, ".git"))) stop("output_dir is inside a Git repository (", d_up, "). Save the report outside any repository.")
+    parent <- dirname(d_up); if (parent == d_up) break; d_up <- parent
+  }
+
   #FOLLOW-UP WINDOW PLOT DATA----------------------------------------------------SECTION 6b-----------------------------------------------------
   
   #Build a simple one-row-per-participant table for the plot: one column per timepoint, holding "days
@@ -708,328 +518,75 @@ missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, 
   #Store the plot object (rather than just calling it) so it can be saved and inserted into the
   #exported workbook further down. A bare function call mid-function does not print or save a ggplot
   #object.
-  csm_plot <- timepoint_plot(plot_table, metadata)
-  
-  if (simplify_ID == TRUE) {
-    #Remove each unique "record_id" column, leaving only one generic "participant_identifier" column.
-    all_timepoints <- dplyr::select(all_timepoints,
-                                    !any_of(record_ids)
-    )
-    #Simplify "participant_identifier" column name if there is only one ID type.
-    if (length(record_ids) == 1) {
-      colnames(all_timepoints)[colnames(all_timepoints) == 'participant_identifier_by_event'] <- "participant_id"
-    }
-  } else {
-    #Remove the "participant_identifier_by_event" column, which is only required for plotting.
-    all_timepoints <- dplyr::select(all_timepoints,
-                                    !participant_identifier_by_event
-    )
-  }
-  
-  #  if (simplify_event_date == TRUE) {
-  #    #Remove each unique "event date" column, leaving only one generic "event_date" column.
-  #    all_timepoints <- dplyr::select(all_timepoints,
-  #                                    !any_of(field_timepoint_date)
-  #    )
-  #    #Simplify "temp_event_date" column name.
-  #    if (length(record_ids) == 1) {
-  #      colnames(all_timepoints)[colnames(all_timepoints) == 'temp_event_date'] <- "event_date"
-  #    }
-  #  } else {
-  #    #Remove the "temp_event_date" column.
-  #    all_timepoints <- dplyr::select(all_timepoints,
-  #                                    !temp_event_date
-  #    )
-  #  }
-  
-  #Define data frames to separate timepoints into those out of window, and those missed.
-  #THIS line is currently redundant. oow_timepoints <- all_timepoints
-  #I think this is also redundant. missing_timepoints <- all_timepoints
-  
-  #Set file name.
-  file_name_1 <- paste0(study_name, "_CSM_Missing_And_Overdue_Timepoints_", Sys.Date(), ".csv")
-  #Set file name.
-  file_name_2 <- paste0(study_name, "_CSM_Missing_NOT_Overdue_Timepoints_", Sys.Date(), ".csv")
-  
-  # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-  #
-  #            #For separate function: Days out of window.
-  #
-  #Set file name.
-  file_name_3 <- paste0(study_name, "_CSM_Out_Of_Window_Timepoints_", Sys.Date(), ".csv")
-  #
-  #
-  # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-  
-  #Filter to leave only the required rows in "missing_timepoints" prior to csv export.
-  missing_timepoints <- dplyr::filter(all_timepoints,
-                                      
-                                      #Filter could be based on "field_timepoint_yn" if only seeking missing events, regardless
-                                      #of whether the date is provided.
-                                      #Here, it is disabled with a hash.
-                                      #if_all(all_of(field_timepoint_yn), ~ is.na(.x))
-                                      
-                                      #Filter could be based on "field_timepoint_date" if seeking to include events that did
-                                      #occur but did not include a date.
-                                      if_all(all_of(field_timepoint_date), ~ is.na(.x)),
-                                      
-                                      #Filter out any rows for events corresponding to records that have no recorded Baseline Visit.
-                                      #This would likely be participants who were not successfully screened.
-                                      additional_comment != "No Baseline Event Recorded",
-                                      
-                                      #Filter out any rows for events corresponding to records that are not yet overdue.
-                                      additional_comment != "Event Not Yet Overdue",
-                                      
-                                      #Filter out any rows for events corresponding to records that are not yet overdue.
-                                      additional_comment != "Event Recorded - No Date Recorded"
-  )
-  
-  #Optionally select columns to exclude all timepoint date fields.
-  #Here, it is disabled with a hash.
-  #missing_timepoints <- dplyr::select(missing_timepoints, !all_of(field_timepoint_date))
-  
-  # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-  #
-  #            #For separate function: Days out of window.
-  #
-  #Filter to select the required rows in dataframe "oow_timepoints" prior to csv export.
-  oow_timepoints <- dplyr::setdiff(all_timepoints, missing_timepoints)
-  oow_timepoints <- dplyr::filter(oow_timepoints,
-                                  
-                                  #Filter out any rows for events corresponding to records that have no recorded Baseline Visit.
-                                  #This would likely be participants who were not successfully screened.
-                                  additional_comment != "No Baseline Event Recorded",
-                                  
-                                  #Filter out any rows for events for which the visit was in window.
-                                  out_of_window_comment != "Event Is Within Window"
-                                  
-  )
-  
-  #
-  #
-  # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-  
-  ##x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#EXCLUDED TIMEPOINTS IF DESIRED#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#excluded##
-  #x#x#x#x#x#  #x# #x# #x# #x# #x#
-  # This section can be disabled with #s if excluded timepoints are not desired in the output.
-  # Alternatively, the output alone can be excluded by removing the "excluded_timepoints" and "in_window_timepoints" parameters from the write.xlsx output.
-  #Set file name.
-  file_name_4 <- paste0(study_name, "_CSM_In_Window_Timepoints_", Sys.Date(), ".csv")
-  file_name_5 <- paste0(study_name, "_CSM_Excluded_Timepoints_", Sys.Date(), ".csv")
-  
-  #Filter timepoints that were attended in window, if desired.
-  in_window_timepoints <- dplyr::filter(all_timepoints,
-                                        out_of_window_comment == "Event Is Within Window"
-  )
-  
-  #Sort "missing not overdue window timepoints" by "days_overdue"
-  in_window_timepoints <- dplyr::arrange(in_window_timepoints, redcap_data_access_group)
-  
-  
-  #Filter to place the excluded rows (in case this is useful) dataframe "excluded_timepoints" for csv export.
-  excluded_timepoints <- dplyr::setdiff(all_timepoints, missing_timepoints)
-  excluded_timepoints <- dplyr::setdiff(excluded_timepoints, oow_timepoints)
-  excluded_timepoints <- dplyr::setdiff(excluded_timepoints, in_window_timepoints)
-  
-  #Sort "excluded timepoints" by "days_overdue"
-  excluded_timepoints <- dplyr::arrange(excluded_timepoints, redcap_data_access_group)
-  
-  #If statement checks if include_split_CSVs has been set to TRUE. If TRUE, writes CSV files for each separate output sheet.
-  if (include_split_CSVs == TRUE) {
-    #Write data as CSV.
-    write.csv (in_window_timepoints, file_name_4, row.names = FALSE)
-    
-    #Write data as CSV.
-    write.csv (excluded_timepoints, file_name_5, row.names = FALSE)
-  }
-  
-  #x#x#x#x#x#  #x# #x# #x# #x# #x#
-  ##x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#EXCLUDED TIMEPOINTS IF DESIRED#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#excluded##
-  
-  
-  #Select only columns which are relevant to "missing timepoints".
-  missing_timepoints <- dplyr::select(missing_timepoints, !days_out_of_window)
-  missing_timepoints <- dplyr::select(missing_timepoints, !out_of_window_comment)
-  
-  #Sort "missing_timepoints" by "days overdue"
-  missing_timepoints <- sort_by(missing_timepoints, ~ days_overdue, decreasing = TRUE)
-  
-  #Sort "missing timepoints" by "days_overdue"
-  missing_timepoints <- dplyr::arrange(missing_timepoints, redcap_data_access_group, desc(days_overdue))
-  
-  
-  #Separate "missing_timepoints" into two separate data frames, one for those that are missing AND overdue, and one for those missing but NOT overdue.
-  missing_and_overdue_timepoints <- dplyr::filter(missing_timepoints,
-                                                  #Filter based on days overdue to keep only rows which are missing AND overdue.
-                                                  days_overdue > 0
-  )
-  missing_not_overdue_timepoints <- dplyr::filter(missing_timepoints,
-                                                  #Filter based on days overdue to keep only rows which are missing but NOT overdue.
-                                                  days_overdue <= 0
-  )
-  
-  #Clarifies when the days overdue is comparing from, to keep the exports up to date.
-  colnames(missing_and_overdue_timepoints)[colnames(missing_and_overdue_timepoints) == 'days_overdue'] <- paste0("days_overdue_as_of_",Sys.Date())
-  colnames(missing_not_overdue_timepoints)[colnames(missing_not_overdue_timepoints) == 'days_overdue'] <- paste0("days_until_overdue_as_of_",Sys.Date())
-  
-  # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-  #
-  #            #For separate function: Days out of window.
-  #
-  #Select only columns which are relevant to "out of window timepoints".
-  oow_timepoints <- dplyr::select(oow_timepoints, !days_overdue)
-  oow_timepoints <- dplyr::select(oow_timepoints, !additional_comment)
-  
-  #Sort "out of window timepoints" by "days_out_of_window"
-  oow_timepoints <- dplyr::arrange(oow_timepoints, redcap_data_access_group, desc(days_out_of_window))
-  #
-  #
-  # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-  
-  #EXPORT XLSX PREPARATION------------------------------------------------------SECTION 6d----------------------------------------------------
-  
-  #Set file name.
-  file_name_final <- paste0(study_name, "_CSM_Missing_Overdue_And_OOW_Timepoints_", Sys.Date(), ".xlsx")
-  
-  
-  #EXCLUDED RESULTS can be disabled with #s if "Missing NOT Overdue Timepoints", "In Window Timepoints", and "Excluded Timepoints" are not desired for output.
-  
-  #Define list of "datasets" for spreadsheet export.
-  datasets <- list("Missing And Overdue" = missing_and_overdue_timepoints,
-                   "Missing NOT Overdue" = missing_not_overdue_timepoints,
-                   "Attended Out Of Window" = oow_timepoints,
-                   "Attended In Window" = in_window_timepoints,
-                   "Excluded" = excluded_timepoints
-  )
-  
-  #Define header style "hs" for spreadsheet export.
-  hs <- openxlsx::createStyle(
-    textDecoration = "BOLD",
-    fontColour = "#000000",
-    fontSize = 12,
-    fgFill = "#BBBBBB",
-    border = "TopBottomLeftRight"
-  )
-  
-  #Define list of tab colours to use for clarity.
-  tabColourlist <- list("#ed8796","#f5a97f","#eed49f","#a6da95","#7dc4e4")
-  #Alternative colouring.
-  #  tabColourlist <- rainbow(5, s = 0.63, v = 0.87, start = 0, end = 0.44)
-  
-  
-  #This .xlsx spreadsheet write is redundant and has been replaced by the code below it.
-  #Write data as .xlsx spreadsheet.
-  #  openxlsx::write.xlsx(datasets,
-  #                       file = file_name_final,
-  #                       borders = "all",
-  #                       colWidths = "auto",
-  #                       headerStyle = hs,
-  #                       tabColour = list("#ed8796","#f5a97f","#eed49f","#a6da95","#7dc4e4") ,
-  #                       firstRow = TRUE
-  #                       )#, keepNA = TRUE)
-  #
-  
-  #TESTING↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓TESTING
-  #Create an empty workbook to fill with sheets for each data set for final export.
+  #V2.0.0 (AI-drafted fix): V1 stopped with an error when no timepoint had been attended yet (nothing to plot),
+  #for example early in a study. The plot is now only drawn when there is something to plot.
+  has_points <- any(!is.na(unlist(plot_table[paste0(events, "_days")])))
+  if (has_points) csm_plot <- timepoint_plot(plot_table, metadata)
+  #EXPORT XLSX (V2.0.0)---------------------------------------------------------SECTION 6d----------------------------------------------------
+  file_name_final <- file.path(out_abs, paste0(study_name, "_Missing_Overdue_And_OOW_Timepoints_", format(as_of, "%Y-%m-%d"), ".xlsx"))
   export_workbook <- openxlsx::createWorkbook()
-  
-  #Define list of names to use for each of the workbook's sheets.
-  nameslist <- list("Missing And Overdue",
-                    "Missing NOT Overdue",
-                    "Attended Out Of Window",
-                    "Attended In Window",
-                    "Excluded"
-  )
-  
-  for (wbi in 1:length(nameslist)) {
-    
-    #Add worksheets to fill with data sets.
-    openxlsx::addWorksheet(export_workbook,
-                           nameslist[wbi],
-                           tabColour = tabColourlist[wbi]
-    )
-    
-    #Define header style "hs" for spreadsheet export.
-    hs <- openxlsx::createStyle(
-      textDecoration = "BOLD",
-      fontColour = "#000000",
-      fontSize = 12,
-      fgFill = tabColourlist[wbi],
-      border = "TopBottomLeftRight"
-    )
-    
-    #Write data into worksheets within worksheet to be exported.
-    openxlsx::writeData(export_workbook,
-                        wbi,
-                        datasets[[wbi]],
-                        borders = "all",
-                        headerStyle = hs
-    )
-    
-    #Freeze the first row of each sheet for ease of use.
-    openxlsx::freezePane(export_workbook,
-                         wbi,
-                         firstActiveRow = NULL,
-                         firstActiveCol = NULL,
-                         firstRow = TRUE,
-                         firstCol = FALSE
-    )
-    
-    #Set column widths to "Auto" to show all text.
-    openxlsx::setColWidths(export_workbook,
-                           wbi,
-                           cols = 1:ncol(datasets[[wbi]]),
-                           widths = "auto"
-    )
-    
-    #FUTURE FIX
-    #Retrieve column widths for further widening as previous function often underestimates required width.
-    
-    #Define vector to store site/DAG cell colours for conditional formatting.
-    dag_colours <- rainbow(nrow(all_sites), s = 0.4, v = 1, start = 0.15, end = 0.95)
-    
-    
-    #Conditional format by site/DAG
-    for (dag in 1:nrow(all_sites)) {
-      
-      #Create style by site, rotating through rainbow colours twice and looping around for contrast.
-      dag_style <- openxlsx::createStyle(bgFill = dag_colours[1+(2*dag) %% nrow(all_sites)])
-      
-      dag_rule <- paste0(as.character(all_sites[[dag,1]]))
-      
-      #Add conditional formatting to highlight different magnitudes of days overdue.
-      openxlsx::conditionalFormatting(export_workbook,
-                                      wbi,
-                                      rows = 2:(1+nrow(datasets[[wbi]])),
-                                      cols = 1,
-                                      style = dag_style,
-                                      rule = dag_rule,
-                                      type = "contains"
-      )
+  tabColourlist <- c("#ed8796", "#f5a97f", "#eed49f", "#a6da95", "#c6a0f6", "#91d7e3", "#7dc4e4")
+  head_style <- function(col) openxlsx::createStyle(textDecoration = "BOLD", fontColour = "#000000", fontSize = 12,
+                                                     fgFill = col, border = "TopBottomLeftRight", wrapText = TRUE)
+  #Cover sheet
+  cover <- data.frame(Item = c("Report", "Study", "As of (days overdue counted from)", "Data exported", "Report saved by",
+                               "Script", "Function", "Timepoints assessed", "Not assessed (repeating events)",
+                               "Stop rules", "How timepoints are shown"),
+                      Value = c("Missing, overdue and out-of-window timepoints", study_name, fmt(as_of),
+                                if (is.null(export_time)) "(not given)" else format(as.POSIXct(export_time), "%d %b %Y %H:%M"),
+                                Sys.info()[["user"]], if (is.null(script) || trimws(script) == "") "(not given)" else trimws(script),
+                                paste0("missing_overdue_and_oow_timepoints V", version),
+                                paste0(metadata$timepoint_name, " (", metadata$expected_days_after_baseline, " days, -",
+                                       metadata$minus_days, "/+", metadata$plus_days, ")", collapse = "; "),
+                                if (length(not_assessed)) paste(not_assessed, collapse = ", ") else "None",
+                                if (is.null(stop_rules)) "Not used" else
+                                  paste0(stop_source, ": ", paste0(stop_rules$rule, " (", stop_rules$event, ", ", stop_rules$date_field,
+                                                                   ifelse(stop_rules$logic == "", "", paste0(", ", stop_rules$logic)), ")",
+                                                                   collapse = "; ")),
+                                paste("Window = baseline date + expected days, from minus days early to plus days late.",
+                                      "Missing and overdue = the window has closed by the 'as of' date.",
+                                      "Not expected = the timepoint's expected date is after the earliest date from a matching stop rule;",
+                                      "timepoints expected before that date still count.",
+                                      "Participants with no data at the baseline event are not included.")),
+                      stringsAsFactors = FALSE)
+  openxlsx::addWorksheet(export_workbook, "Cover")
+  openxlsx::writeData(export_workbook, "Cover", cover, headerStyle = head_style("#BBBBBB"))
+  openxlsx::addStyle(export_workbook, "Cover", openxlsx::createStyle(wrapText = TRUE, valign = "top", border = "TopBottomLeftRight"),
+                     rows = 2:(nrow(cover) + 1), cols = 1:2, gridExpand = TRUE)
+  openxlsx::setColWidths(export_workbook, "Cover", cols = 1:2, widths = c(34, 110))
+  #Summary
+  openxlsx::addWorksheet(export_workbook, "Summary")
+  openxlsx::writeData(export_workbook, "Summary", summary_table, headerStyle = head_style("#BBBBBB"), borders = "all")
+  openxlsx::addStyle(export_workbook, "Summary", openxlsx::createStyle(textDecoration = "BOLD"),
+                     rows = which(summary_table$site == "All sites") + 1, cols = 1:ncol(summary_table), gridExpand = TRUE, stack = TRUE)
+  openxlsx::freezePane(export_workbook, "Summary", firstRow = TRUE)
+  openxlsx::setColWidths(export_workbook, "Summary", cols = 1:ncol(summary_table), widths = c(24, 18, rep(14, length(categories) + 1)))
+  #One sheet per category
+  show <- results
+  for (col in c("baseline_date", "expected_date", "window_start", "window_end", "timepoint_date")) show[[col]] <- fmt(show[[col]])
+  for (k in seq_along(categories)) {
+    x <- show[show$status == categories[k], setdiff(names(show), "status"), drop = FALSE]
+    openxlsx::addWorksheet(export_workbook, sheet_names[k], tabColour = tabColourlist[k])
+    openxlsx::writeData(export_workbook, sheet_names[k], x, borders = "all", headerStyle = head_style(tabColourlist[k]))
+    openxlsx::freezePane(export_workbook, sheet_names[k], firstRow = TRUE)
+    openxlsx::setColWidths(export_workbook, sheet_names[k], cols = 1:ncol(x), widths = "auto")
+    if (categories[k] == "Missing and overdue" && nrow(x) > 0) {
+      openxlsx::conditionalFormatting(export_workbook, sheet_names[k], rows = 2:(nrow(x) + 1), cols = which(names(x) == "days"),
+                                      style = c("white", "red"), type = "colourScale")
     }
   }
-  
-  #Conditional formatting set for sheets 1 to 3. This is not generalised and will need to be in the future if which sheets are included changes.
-  for (wsi in 1:3) {
-    
-    #Add conditional formatting to highlight different magnitudes of days overdue.
-    openxlsx::conditionalFormatting(export_workbook,
-                                    wsi,
-                                    rows = 2:(1+nrow(datasets[[wsi]])),
-                                    cols = (ncol(datasets[[wsi]])-3),
-                                    style = c("white", "red"),
-                                    type = "colourScale"
-    )
-  }
-  
-  
+
+  if (!has_points) {
+    openxlsx::addWorksheet(export_workbook, "Plot", tabColour = "#8aadf4")
+    openxlsx::writeData(export_workbook, "Plot", "No timepoints have been attended yet, so there is nothing to plot.")
+  } else {
   #ADD FOLLOW-UP WINDOW PLOT AS ITS OWN SHEET------------------------------------------------------------------------------------------------
   
   #Add a worksheet to hold the follow-up window completion plot, matching the style of the other tabs.
   openxlsx::addWorksheet(export_workbook, "Plot", tabColour = "#8aadf4")
   
   #Set a plot image file name, following the same naming convention as the other exports.
-  plot_file_name <- paste0(study_name, "_CSM_Followup_Window_Plot_", Sys.Date(), ".png")
+  plot_file_name <- file.path(out_abs, paste0(study_name, "_Followup_Window_Plot_", format(as_of, "%Y-%m-%d"), ".png"))  #V2.0.0: saved with the workbook, named by the as_of date like the workbook
   
   #Height scales with how many participants (or how wide a numeric range) need to be shown vertically,
   #rather than a fixed constant - a fixed height works fine for a small pilot study but crushes every
@@ -1076,34 +633,80 @@ missing_overdue_and_oow_timepoints <- function(data, metadata, by_site = FALSE, 
     units = "in",
     dpi = 150
   )
-  
-  
-  
-  #Export data as .xlsx spreadsheet/workbook.
+  }
+
+  #Save the workbook
   openxlsx::saveWorkbook(export_workbook, file = file_name_final, overwrite = TRUE)
-  #TESTING↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑TESTING
-  
-  #If statement checks if include_split_CSVs has been set to TRUE. If TRUE, writes CSV files for each separate output sheet.
-  if (include_split_CSVs == TRUE) {
-    #Write data as CSV.
-    write.csv (missing_and_overdue_timepoints, file_name_1, row.names = FALSE)
-    
-    #Write data as CSV.
-    write.csv (missing_not_overdue_timepoints, file_name_2, row.names = FALSE)
+  message("Timepoint report saved: ", file_name_final)
+  invisible(list(results = results, summary = summary_table, file = file_name_final))
+}
+
+#STOP RULE LOGIC (V2.0.0)---------------------------------------------------------------------------------------------------------------------
+#' Read stop rule logic written like REDCap branching logic
+#'
+#' Supports [field]='value', [field]<>'value', checkboxes as [field(code)]='1', AND, OR
+#' and brackets. Values can be in single or double quotes, or plain numbers. Blank
+#' logic matches every row. Returns a function that takes data rows and returns TRUE
+#' or FALSE for each row. Stops with a clear message if the logic can't be read or
+#' names a field that isn't in the data.
+#' @param logic The logic (one piece of text).
+#' @param fields The column names of the data.
+#' @export
+read_stop_logic <- function(logic, fields) {
+  logic <- trimws(as.character(logic))
+  if (is.na(logic) || logic == "") return(function(rows) rep(TRUE, nrow(rows)))
+  pattern <- "\\s+|\\[([A-Za-z0-9_]+)(?:\\(([A-Za-z0-9_-]+)\\))?\\]|'([^']*)'|\"([^\"]*)\"|<>|=|\\(|\\)|(?i:\\bAND\\b)|(?i:\\bOR\\b)|-?[0-9]+(?:\\.[0-9]+)?"
+  pos <- 1; out <- character(0); used <- character(0); n <- nchar(logic)
+  while (pos <= n) {
+    rest <- substr(logic, pos, n)
+    m <- regexpr(paste0("^(?:", pattern, ")"), rest, perl = TRUE)
+    if (m != 1) stop("Stop rule logic can't be read at \"", substr(rest, 1, 20), "\" in: ", logic,
+                     ". Use [field]='value', <>, [field(code)], AND, OR and brackets.", call. = FALSE)
+    tok <- substr(rest, 1, attr(m, "match.length"))
+    pos <- pos + nchar(tok)
+    if (grepl("^\\s+$", tok)) next
+    if (grepl("^\\[", tok)) {
+      f <- sub("^\\[([A-Za-z0-9_]+).*$", "\\1", tok)
+      code <- if (grepl("\\(", tok)) sub("^\\[[A-Za-z0-9_]+\\(([A-Za-z0-9_-]+)\\)\\]$", "\\1", tok) else ""
+      col <- if (code != "") paste0(f, "___", gsub("-", "_", code)) else f
+      used <- c(used, col)
+      out <- c(out, paste0(".v(\"", col, "\")"))
+    } else if (grepl("^['\"]", tok)) {
+      val <- substr(tok, 2, nchar(tok) - 1)
+      out <- c(out, deparse(val))
+    } else if (grepl("^-?[0-9]", tok)) {
+      out <- c(out, deparse(tok))
+    } else if (tok == "=") { out <- c(out, "==")
+    } else if (tok == "<>") { out <- c(out, "!=")
+    } else if (toupper(tok) == "AND") { out <- c(out, "&")
+    } else if (toupper(tok) == "OR") { out <- c(out, "|")
+    } else out <- c(out, tok)
   }
-  
-  # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-  #
-  #            #For separate function: Days out of window.
-  #
-  #If statement checks if include_split_CSVs has been set to TRUE. If TRUE, writes CSV files for each separate output sheet.
-  if (include_split_CSVs == TRUE) {
-    #Write data as CSV.
-    write.csv (oow_timepoints, file_name_3, row.names = FALSE)
+  bad <- setdiff(used, fields)
+  if (length(bad) > 0) stop("Stop rule logic names field(s) not in the data: ", paste(bad, collapse = ", "),
+                            " (in: ", logic, ")", call. = FALSE)
+  expr <- tryCatch(parse(text = paste(out, collapse = " ")), error = function(e)
+    stop("Stop rule logic can't be read (check the brackets and AND/OR): ", logic, call. = FALSE))
+  # every comparison must be field-versus-value: check the structure
+  ok_tree <- function(e) {
+    if (is.call(e)) {
+      op <- as.character(e[[1]])
+      if (op == "(") return(ok_tree(e[[2]]))
+      if (op %in% c("&", "|")) return(length(e) == 3 && ok_tree(e[[2]]) && ok_tree(e[[3]]))
+      if (op %in% c("==", "!=")) {
+        is_field <- function(z) is.call(z) && identical(as.character(z[[1]]), ".v")
+        return(length(e) == 3 && ((is_field(e[[2]]) && is.character(e[[3]])) || (is.character(e[[2]]) && is_field(e[[3]]))))
+      }
+    }
+    FALSE
   }
-  #
-  #
-  # # # # # # # # # # # ############################################EXCLUSIVELY FOR OOW FUNCTION###############################oow#oow#oow#
-  
-  
+  if (length(expr) != 1 || !ok_tree(expr[[1]])) {
+    stop("Stop rule logic can't be read: each part must compare a [field] with a value, joined by AND or OR: ", logic, call. = FALSE)
+  }
+  function(rows) {
+    .v <- function(col) { x <- as.character(rows[[col]]); x[is.na(x)] <- ""; trimws(x) }
+    r <- eval(expr[[1]], list(.v = .v))
+    r[is.na(r)] <- FALSE
+    r
+  }
 }
